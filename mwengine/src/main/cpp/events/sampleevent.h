@@ -26,9 +26,13 @@
 #include "baseaudioevent.h"
 #include <instruments/baseinstrument.h>
 
+#include <android/log.h>
+
+#define TAG_SAMPLE "SAMPLE_EVENT"
+
 namespace MWEngine {
-class SampleEvent : public BaseAudioEvent
-{
+    class SampleEvent : public BaseAudioEvent
+    {
     public:
         SampleEvent();
         SampleEvent( BaseInstrument* aInstrument );
@@ -49,6 +53,10 @@ class SampleEvent : public BaseAudioEvent
         // by default the sample will playback at the sampling rate of the engine
 
         bool setSample( AudioBuffer* sampleBuffer );
+
+        // EXPERIMENTAL
+        // set playback direction
+        void setPlaybackDirection(bool forward);
 
         // use this method in case your samples are at a different sampling rate
         // than the engine (for instance read from WAV file created externally)
@@ -103,6 +111,9 @@ class SampleEvent : public BaseAudioEvent
 
     protected:
 
+        // play direction
+        bool _isForward;
+
         // total sample range
 
         int _rangePointer;
@@ -125,6 +136,7 @@ class SampleEvent : public BaseAudioEvent
         int _bufferRangeLength;
         bool _useBufferRange;
         float _playbackRate;
+        float _lastPlaybackRate; // EXPERIMENT parameter smoothing
         float _readPointerF;
 
         unsigned int _sampleRate;
@@ -132,7 +144,7 @@ class SampleEvent : public BaseAudioEvent
 
         void init( BaseInstrument* aInstrument );
         void cacheFades();
-};
+    };
 } // E.O namespace MWEngine
 
 #endif
