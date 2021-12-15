@@ -56,14 +56,14 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
             _lastPlaybackPosition = _bufferRangeStart;
             // Experimental - parameter smoothing
             _lastPlaybackRate = _playbackRate; // Experimental - parameter smoothing
-            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                "SampleEvent::play() forward samplebufsize %d bufferRangeEnd %d readpointer %d bufferRangeStart %d",
-                                _buffer->bufferSize - 1, _bufferRangeEnd, _readPointer, _bufferRangeStart);
+//            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                "SampleEvent::play() forward samplebufsize %d bufferRangeEnd %d readpointer %d bufferRangeStart %d",
+//                                _buffer->bufferSize - 1, _bufferRangeEnd, _readPointer, _bufferRangeStart);
         } else { // backward
             _readPointer = std::min(_buffer->bufferSize - 1, _bufferRangeEnd);
-            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                "SampleEvent::play() backward samplebufsize %d bufferRangeEnd %d readpointer %d bufferRangeStart %d",
-                                _buffer->bufferSize - 1, _bufferRangeEnd, _readPointer, _bufferRangeStart);
+//            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                "SampleEvent::play() backward samplebufsize %d bufferRangeEnd %d readpointer %d bufferRangeStart %d",
+//                                _buffer->bufferSize - 1, _bufferRangeEnd, _readPointer, _bufferRangeStart);
             _readPointerF = (float) _readPointer;
             _lastPlaybackPosition = _bufferRangeEnd;
         }
@@ -353,8 +353,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         bool mixMono = _buffer->amountOfChannels < outputChannels;
 
         if (_playbackRate == 1.f) {
-            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                "SampleEvent::mixBuffer _playbackRate == 1.f");
+//            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                "SampleEvent::mixBuffer _playbackRate == 1.f");
 
 
             // it look like case livePlayback is not handled for !loopeable (oneShot) - need test
@@ -443,8 +443,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                 float crossfadeLength = (float) (maxReadPos - _crossfadeStart);
                 float volume = _volume;
                 if (_isForward) { // EXPERIMENTAL playback direction
-                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                        "SampleEvent::mixBuffer _playbackRate == 1.f forward loop");
+//                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                        "SampleEvent::mixBuffer _playbackRate == 1.f forward loop");
                     for (i = 0; i < bufferSize; ++i) {
                         bufferPointer = (loopStarted && i >= loopOffset) ? minBufferPosition +
                                                                            (i - loopOffset) : i +
@@ -491,8 +491,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                         }
                     }
                 } else { // is backward OK
-                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                        "SampleEvent::mixBuffer _playbackRate == 1.f backward loop");
+//                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                        "SampleEvent::mixBuffer _playbackRate == 1.f backward loop");
                     for (i = 0; i < bufferSize; ++i) {
 //                    bufferPointer = (loopStarted && i >= loopOffset) ? minBufferPosition +
 //                                                                       (i - loopOffset) : i +
@@ -548,9 +548,9 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         }
 
         // custom playback rate
-        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                            "SampleEvent::mixBuffer _playbackRate == custom forward: %d",
-                            _isForward);
+//        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                            "SampleEvent::mixBuffer _playbackRate == custom forward: %d",
+//                            _isForward);
 
         int i, t, t2, c, ca;
         float frac;
@@ -586,9 +586,9 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 
         if (!_loopeable) {
             if (_isForward) { // EXPERIMENTAL playback direction
-                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                    "SampleEvent::mixBuffer _playbackRate == custom forward: %d !_loop",
-                                    _isForward);
+//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                    "SampleEvent::mixBuffer _playbackRate == custom forward: %d !_loop",
+//                                    _isForward);
                 fEventEnd = _eventEnd; // use unstretched end (see below fBufferPointer calculation)
 
                 for (i = 0; i < bufferSize; ++i, fi += _playbackRate) {
@@ -634,9 +634,9 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                     }
                 }
             } else { // Not loopeable and backward ToDo: Done OK
-                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                    "SampleEvent::mixBuffer _playbackRate == custom backward: %d !_loop",
-                                    _isForward);
+//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                    "SampleEvent::mixBuffer _playbackRate == custom backward: %d !_loop",
+//                                    _isForward);
                 fEventEnd = _eventEnd; // use unstretched end (see below fBufferPointer calculation)
                 minReadPos = (_buffer->bufferSize - 1) - _eventLength;
 
@@ -785,9 +785,9 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                 }
             } else { // Backward custom rate loopeable  - OK
                 // loopeable events mix their buffer contents using an internal read pointer
-                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                    "SampleEvent::mixBuffer _playbackRate == custom, backward, _loop, buffersize %d",
-                                    bufferSize);
+//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                    "SampleEvent::mixBuffer _playbackRate == custom, backward, _loop, buffersize %d",
+//                                    bufferSize);
 
                 // correspond to loop offset relative to sample
                 float fMaxReadPos = (float) maxReadPos;
@@ -797,9 +797,9 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                 if (_livePlayback) // use internal read pointer when reading loopeable content
                     fBufferPosition = (float)(_buffer->bufferSize-1) - _readPointerF;
 
-                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                    "SampleEvent::mixBuffer _playbackRate == custom, backward, _readPointerF %f, fBufferPosition %f",
-                                    _readPointerF, fBufferPosition);
+//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                    "SampleEvent::mixBuffer _playbackRate == custom, backward, _readPointerF %f, fBufferPosition %f",
+//                                    _readPointerF, fBufferPosition);
 //                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
 //                                    "SampleEvent::mixBuffer _playbackRate == custom, backward, samplebufsize %d, fEventEnd %f",
 //                                    _buffer->bufferSize - 1, fEventEnd);
@@ -913,8 +913,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
  * but triggered manually via a "noteOn" / "noteOff" operation for instant "live" playback
  */
     void SampleEvent::mixBuffer(AudioBuffer *outputBuffer) {
-        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                            "SampleEvent::mixBuffer(AudioBuffer *outputBuffer) \"live\" playback");
+//        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                            "SampleEvent::mixBuffer(AudioBuffer *outputBuffer) \"live\" playback");
         // write sample contents into live buffer
         // we specify the maximum buffer position as the full sample playback range
         mixBuffer(outputBuffer, _lastPlaybackPosition, 0, getBufferRangeLength(), false, 0, false);
@@ -940,7 +940,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
     }
 
     bool SampleEvent::getBufferForRange(AudioBuffer *buffer, int readPos) {
-        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE, "SampleEvent::getBufferForRange");
+//        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE, "SampleEvent::getBufferForRange");
         int bufferSize = buffer->bufferSize;
         int amountOfChannels = buffer->amountOfChannels;
         bool gotBuffer = false;
@@ -958,8 +958,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 
         if (_playbackRate == 1.f) {
             if (_isForward) { // EXPERIMENTAL playback direction
-                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                    "SampleEvent::getBufferForRange _playbackRate==1.0f, forward");
+//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                    "SampleEvent::getBufferForRange _playbackRate==1.0f, forward");
                 for (int i = 0; i < bufferSize; ++i) {
                     // read sample when the read pointer is within sample start and end points
                     if (readPos >= eventStart && readPos <= eventEnd) {
@@ -988,8 +988,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                         readPos = eventStart;
                 }
             } else { // backward
-                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                    "SampleEvent::getBufferForRange _playbackRate==1.0f, backward");
+//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                    "SampleEvent::getBufferForRange _playbackRate==1.0f, backward");
                 for (int i = 0; i < bufferSize; ++i) {
                     // read sample when the read pointer is within sample start and end points
                     if (readPos >= eventStart && readPos <= eventEnd) {
@@ -1022,8 +1022,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         } else {
 
             // custom playback speed
-            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                "SampleEvent::getBufferForRange _playbackRate==custom, forward");
+//            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                "SampleEvent::getBufferForRange _playbackRate==custom, forward");
             int t;
             SAMPLE_TYPE s1, s2;
             float bufferRangeEnd = (float) getBufferRangeEnd();
@@ -1074,8 +1074,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                         readPos = eventStart;
                 }
             } else { // backward
-                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                    "SampleEvent::getBufferForRange _playbackRate==custom, backward");
+//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                    "SampleEvent::getBufferForRange _playbackRate==custom, backward");
                 for (int i = 0; i < bufferSize; ++i) {
                     // read sample when the read pointer is within sample start and end points
                     if (readPos >= eventStart && readPos <= eventEnd) {
