@@ -30,15 +30,15 @@ namespace MWEngine {
 
 /* constructor / destructor */
 
-    SampleEvent::SampleEvent() {
-        construct();
-        init(0);
-    }
+SampleEvent::SampleEvent()
+{
+    init( nullptr );
+}
 
-    SampleEvent::SampleEvent(BaseInstrument *aInstrument) {
-        construct();
-        init(aInstrument);
-    }
+SampleEvent::SampleEvent( BaseInstrument* aInstrument )
+{
+    init( aInstrument );
+}
 
     SampleEvent::~SampleEvent() {
         // nowt...
@@ -1121,29 +1121,30 @@ namespace MWEngine {
 
 /* protected methods */
 
-    void SampleEvent::init(BaseInstrument *instrument) {
-        _bufferRangeStart = 0;
-        _bufferRangeEnd = 0;
-        _bufferRangeLength = 0;
-        _loopeable = false;
-        _crossfadeMs = 0;
-        _crossfadeStart = 0;
-        _crossfadeEnd = 0;
-        _readPointer = 0;
-        _loopStartOffset = 0;
-        _loopEndOffset = 0;
-        _rangePointer = 0;     // integer for non altered playback rates
-        _rangePointerF = 0.f;   // floating point for alternate playback rates
-        _lastPlaybackPosition = 0;
-        _playbackRate = 1.f;
-        _lastPlaybackRate = 1.0f; // EXPERIMENT parameter smoothing
-        _readPointerF = 0.f;
-        _destroyableBuffer = false; // is referenced via SampleManager !
-        _useBufferRange = false;
-        _instrument = instrument;
-        _sampleRate = (unsigned int) AudioEngineProps::SAMPLE_RATE;
-        _isForward = true;
-    }
+void SampleEvent::init( BaseInstrument* instrument )
+{
+    BaseAudioEvent::init();
+
+    _bufferRangeStart     = 0;
+    _bufferRangeEnd       = 0;
+    _bufferRangeLength    = 0;
+    _loopeable            = false;
+    _crossfadeMs          = 0;
+    _crossfadeStart       = 0;
+    _crossfadeEnd         = 0;
+    _readPointer          = 0;
+    _loopStartOffset      = 0;
+    _loopEndOffset        = 0;
+    _rangePointer         = 0;     // integer for non altered playback rates
+    _rangePointerF        = 0.f;   // floating point for alternate playback rates
+    _lastPlaybackPosition = 0;
+    _playbackRate         = 1.f;
+    _readPointerF         = 0.f;
+    _destroyableBuffer    = false; // is referenced via SampleManager !
+    _useBufferRange       = false;
+    _instrument           = instrument;
+    _sampleRate           = ( unsigned int ) AudioEngineProps::SAMPLE_RATE;
+}
 
     void SampleEvent::cacheFades() {
         if (_crossfadeMs > 0) {
