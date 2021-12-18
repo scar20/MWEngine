@@ -29,7 +29,7 @@
 namespace MWEngine {
 
 /* constructor / destructor */
-
+bool USE_CUSTOM_RATE_ONLY = false;
 SampleEvent::SampleEvent()
 {
     init( nullptr );
@@ -53,6 +53,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         if (_isForward) {
             _readPointer = std::max(0, _bufferRangeStart);
             _readPointerF = (float) _readPointer;
+            _rangePointerF = _readPointerF; // seem this is the fix for range not reset to start on play
             _lastPlaybackPosition = _bufferRangeStart;
             // Experimental - parameter smoothing
             _lastPlaybackRate = _playbackRate; // Experimental - parameter smoothing
@@ -65,7 +66,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 //                                "SampleEvent::play() backward samplebufsize %d bufferRangeEnd %d readpointer %d bufferRangeStart %d",
 //                                _buffer->bufferSize - 1, _bufferRangeEnd, _readPointer, _bufferRangeStart);
             _readPointerF = (float) _readPointer;
-            _lastPlaybackPosition = _bufferRangeEnd;
+            _rangePointerF = _readPointerF; // seem this is the fix for range not reset to start on play
+            _lastPlaybackPosition = _bufferRangeStart;
         }
 
         BaseAudioEvent::play();
@@ -797,13 +799,6 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                 if (_livePlayback) // use internal read pointer when reading loopeable content
                     fBufferPosition = (float)(_buffer->bufferSize-1) - _readPointerF;
 
-//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-//                                    "SampleEvent::mixBuffer _playbackRate == custom, backward, _readPointerF %f, fBufferPosition %f",
-//                                    _readPointerF, fBufferPosition);
-//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-//                                    "SampleEvent::mixBuffer _playbackRate == custom, backward, samplebufsize %d, fEventEnd %f",
-//                                    _buffer->bufferSize - 1, fEventEnd);
-
 
                 bool sampleLoopStarted = false;
                 float crossfadeLength = fMaxReadPos - (float) _crossfadeStart;
@@ -914,7 +909,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
  */
     void SampleEvent::mixBuffer(AudioBuffer *outputBuffer) {
 //        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-//                            "SampleEvent::mixBuffer(AudioBuffer *outputBuffer) \"live\" playback");
+//                            "SampleEvent::mixBuffer(AudioBuffer *outputBuffer) \"live\" playback lastPlaybackPos %d",
+//                            _lastPlaybackPosition);
         // write sample contents into live buffer
         // we specify the maximum buffer position as the full sample playback range
         mixBuffer(outputBuffer, _lastPlaybackPosition, 0, getBufferRangeLength(), false, 0, false);
@@ -940,7 +936,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
     }
 
     bool SampleEvent::getBufferForRange(AudioBuffer *buffer, int readPos) {
-//        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE, "SampleEvent::getBufferForRange");
+//        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE, "SampleEvent::getBufferForRange readPos %d", readPos);
         int bufferSize = buffer->bufferSize;
         int amountOfChannels = buffer->amountOfChannels;
         bool gotBuffer = false;
@@ -956,7 +952,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 
         SAMPLE_TYPE *srcBuffer;
 
-        if (_playbackRate == 1.f) {
+        if ( USE_CUSTOM_RATE_ONLY && (_playbackRate == 1.f)) {
             if (_isForward) { // EXPERIMENTAL playback direction
 //                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
 //                                    "SampleEvent::getBufferForRange _playbackRate==1.0f, forward");
@@ -1058,8 +1054,13 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                             targetBuffer[i] += ((s1 + (s2 - s1) * frac) * _volume);
                         }
 
-                        if ((_rangePointerF += _playbackRate) > bufferRangeEnd)
+                        // modified using round and >= as in the same test in mixBuffer
+                        // to prevent crash if bufferRangeEnd = eventEnd
+                        float max =  std::min(bufferRangeEnd, (float)eventEnd);
+                        if ((_rangePointerF += _playbackRate) > max)
                             _rangePointerF = (float) _bufferRangeStart;
+//                        if (_rangePointerF += _playbackRate > bufferRangeEnd)
+//                            _rangePointerF = (float) _bufferRangeStart;
 //                        if ((_rangePointerF += _lastPlaybackRate) > bufferRangeEnd)
 //                            _rangePointerF = (float) _bufferRangeStart;
 //                        _lastPlaybackRate += playFrac;
