@@ -952,8 +952,11 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         if (useInternalPointer)
             readPos = _readPointer;
 
-        int eventStart = _eventStart;
-        int eventEnd = getEventEnd();
+//        int eventStart = _eventStart;
+//        int eventEnd = getEventEnd();
+        // replace assignment to point to bufferRange instead of eventStart/End
+        int eventStart = getBufferRangeStart();
+        int eventEnd = getBufferRangeEnd();
 
         SAMPLE_TYPE *srcBuffer;
 
@@ -1122,8 +1125,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                     // if this is a loopeable sample (thus using internal read pointer)
                     // set the read pointer to the sample end so it keeps playing indefinitely
 
-                    if (--readPos < eventStart && _loopeable)
-                        readPos = eventEnd;
+//                    if (--readPos < eventStart && _loopeable)
+//                        readPos = eventEnd;
                     if (--readPos < eventStart) {
                         if (_loopeable) readPos = eventEnd;
                         else {
