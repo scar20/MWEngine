@@ -27,9 +27,11 @@
 #include "../sequencer.h"
 
 namespace MWEngine {
+    bool USE_CUSTOM_RATE_ONLY = false;
+    bool ALLWAY_USE_RANGE = true;
 
 /* constructor / destructor */
-bool USE_CUSTOM_RATE_ONLY = false;
+
 SampleEvent::SampleEvent()
 {
     init( nullptr );
@@ -332,10 +334,11 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         // if we have a range length that is unequal to the total sample duration, read from the range and exit
         // otherwise invoke the base mixBuffer method
 
-        if (_useBufferRange) {
+        if (ALLWAY_USE_RANGE || _useBufferRange) {
             // Note: We don't get any buffer from this method and since what we actually do is to
             // delegate mixBuffer to this method and return, perhaps the method could be renamed
             // to "mixBufferForRange". SC.
+//            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE, "ALLWAY_USE_RANGE");
             getBufferForRange(outputBuffer, bufferPosition);
             return;
         }
@@ -1057,7 +1060,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                         // modified using round and >= as in the same test in mixBuffer
                         // to prevent crash if bufferRangeEnd = eventEnd
                         float max =  std::min(bufferRangeEnd, (float)eventEnd);
-                        if ((_rangePointerF += _playbackRate) > max)
+//                        if ((_rangePointerF += _playbackRate) > max)
+                        if ((_rangePointerF += _playbackRate) > (float)_bufferRangeEnd)
                             _rangePointerF = (float) _bufferRangeStart;
 //                        if (_rangePointerF += _playbackRate > bufferRangeEnd)
 //                            _rangePointerF = (float) _bufferRangeStart;
