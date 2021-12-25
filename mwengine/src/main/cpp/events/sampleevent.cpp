@@ -25,6 +25,8 @@
 #include "../audioengine.h"
 #include "../global.h"
 #include "../sequencer.h"
+#include <messaging/notifier.h>
+#include <definitions/notifications.h>
 
 namespace MWEngine {
     bool USE_CUSTOM_RATE_ONLY = false;
@@ -1075,8 +1077,17 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                     // if this is a loopeable sample (thus using internal read pointer)
                     // set the read pointer to the sample start so it keeps playing indefinitely
 
-                    if (++readPos > eventEnd && _loopeable)
-                        readPos = eventStart;
+//                    if (++readPos > eventEnd && _loopeable)
+//                        readPos = eventStart;
+                    if (++readPos > eventEnd) {
+                        if (_loopeable) readPos = eventStart;
+                        else {
+                            Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, 1);
+                            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+                                "SampleEvent::getBufferForRange END_REACHED, forward");
+                        }
+                    }
+
                 }
             } else { // backward
 //                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
@@ -1113,6 +1124,14 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 
                     if (--readPos < eventStart && _loopeable)
                         readPos = eventEnd;
+                    if (--readPos < eventStart) {
+                        if (_loopeable) readPos = eventEnd;
+                        else {
+                            Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, 1);
+                            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+                                                "SampleEvent::getBufferForRange END_REACHED, backward");
+                        }
+                    }
                 }
             }
 
