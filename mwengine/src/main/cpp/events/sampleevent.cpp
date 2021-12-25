@@ -338,8 +338,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
             // Note: We don't get any buffer from this method and since what we actually do is to
             // delegate mixBuffer to this method and return, perhaps the method could be renamed
             // to "mixBufferForRange". SC.
-//            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-//                            "ALLWAY_USE_RANGE");
+//            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE, "ALLWAY_USE_RANGE");
             getBufferForRange(outputBuffer, bufferPosition);
             return;
         }
@@ -1061,7 +1060,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                         // modified using round and >= as in the same test in mixBuffer
                         // to prevent crash if bufferRangeEnd = eventEnd
                         float max =  std::min(bufferRangeEnd, (float)eventEnd);
-                        if ((_rangePointerF += _playbackRate) > max)
+//                        if ((_rangePointerF += _playbackRate) > max)
+                        if ((_rangePointerF += _playbackRate) > (float)_bufferRangeEnd)
                             _rangePointerF = (float) _bufferRangeStart;
 //                        if (_rangePointerF += _playbackRate > bufferRangeEnd)
 //                            _rangePointerF = (float) _bufferRangeStart;
