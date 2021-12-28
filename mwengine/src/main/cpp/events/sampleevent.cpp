@@ -940,7 +940,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         }
         else // backward
         {
-            if ((_lastPlaybackPosition -= outputBuffer->bufferSize) >= getBufferRangeStart()) {
+            if ((_lastPlaybackPosition -= outputBuffer->bufferSize) <= getBufferRangeStart()) {
                 // if this is a one-shot SampleEvent, remove it from the sequencer when we have exceeded
                 // the sample length (e.g. played it in its entirety)
 
