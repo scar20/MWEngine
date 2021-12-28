@@ -71,7 +71,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 //                                _buffer->bufferSize - 1, _bufferRangeEnd, _readPointer, _bufferRangeStart);
             _readPointerF = (float) _readPointer;
             _rangePointerF = _readPointerF; // seem this is the fix for range not reset to start on play
-            _lastPlaybackPosition = _bufferRangeEnd;
+            _lastPlaybackPosition = getBufferRangeEnd(); //_bufferRangeEnd;
         }
 
         BaseAudioEvent::play();
@@ -931,7 +931,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
                     stop();
                     Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, 1);
                     __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                        "SampleEvent::getBufferForRange END_REACHED, forwardward");
+                                        "SampleEvent::getBufferForRange END_REACHED, forward");
                 }
                 else
                     _lastPlaybackPosition = std::max(_bufferRangeStart,
