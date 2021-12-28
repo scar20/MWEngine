@@ -920,19 +920,40 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         // we specify the maximum buffer position as the full sample playback range
         mixBuffer(outputBuffer, _lastPlaybackPosition, 0, getBufferRangeLength(), false, 0, false);
 
-        if ((_lastPlaybackPosition += outputBuffer->bufferSize) >= getBufferRangeEnd()) {
-            // if this is a one-shot SampleEvent, remove it from the sequencer when we have exceeded
-            // the sample length (e.g. played it in its entirety)
+        // Forgot to add test for forward/backward here so here it is
+        if (_isForward)
+        {
+            if ((_lastPlaybackPosition += outputBuffer->bufferSize) >= getBufferRangeEnd()) {
+                // if this is a one-shot SampleEvent, remove it from the sequencer when we have exceeded
+                // the sample length (e.g. played it in its entirety)
 
-            if (!_loopeable) {
-                stop();
-                Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, 1);
-                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                    "SampleEvent::getBufferForRange END_REACHED, backward");
+                if (!_loopeable) {
+                    stop();
+                    Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, 1);
+                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+                                        "SampleEvent::getBufferForRange END_REACHED, forwardward");
+                }
+                else
+                    _lastPlaybackPosition = std::max(_bufferRangeStart,
+                                                     _lastPlaybackPosition - getBufferRangeLength());
             }
-            else
-                _lastPlaybackPosition = std::max(_bufferRangeStart,
-                                                 _lastPlaybackPosition - getBufferRangeLength());
+        }
+        else // backward
+        {
+            if ((_lastPlaybackPosition -= outputBuffer->bufferSize) >= getBufferRangeStart()) {
+                // if this is a one-shot SampleEvent, remove it from the sequencer when we have exceeded
+                // the sample length (e.g. played it in its entirety)
+
+                if (!_loopeable) {
+                    stop();
+                    Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, 1);
+                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+                                        "SampleEvent::getBufferForRange END_REACHED, backward");
+                }
+                else
+                    _lastPlaybackPosition = std::min(_bufferRangeEnd,
+                                                     _lastPlaybackPosition + getBufferRangeLength());
+            }
         }
     }
 
@@ -952,7 +973,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 
         bool useInternalPointer = _loopeable;
 
-        if (useInternalPointer)
+//        if (useInternalPointer) // alway use internalPointer
             readPos = _readPointer;
 
 //        int eventStart = _eventStart;
@@ -1131,7 +1152,8 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 
         // hack - always update _readPointer
 //        if (useInternalPointer)
-            _readPointer = readPos;
+//            _readPointer = readPos;
+        _readPointer = (int)_rangePointerF; // report -RangePointerF instead;
 
         return gotBuffer;
     }
