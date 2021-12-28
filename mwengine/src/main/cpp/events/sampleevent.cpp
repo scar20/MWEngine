@@ -25,6 +25,8 @@
 #include "../audioengine.h"
 #include "../global.h"
 #include "../sequencer.h"
+#include <messaging/notifier.h>
+#include <definitions/notifications.h>
 
 namespace MWEngine {
     bool USE_CUSTOM_RATE_ONLY = false;
@@ -922,8 +924,12 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
             // if this is a one-shot SampleEvent, remove it from the sequencer when we have exceeded
             // the sample length (e.g. played it in its entirety)
 
-            if (!_loopeable)
+            if (!_loopeable) {
                 stop();
+                Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, 1);
+                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+                                    "SampleEvent::getBufferForRange END_REACHED, backward");
+            }
             else
                 _lastPlaybackPosition = std::max(_bufferRangeStart,
                                                  _lastPlaybackPosition - getBufferRangeLength());
@@ -939,7 +945,6 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
     }
 
     bool SampleEvent::getBufferForRange(AudioBuffer *buffer, int readPos) {
-//        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE, "SampleEvent::getBufferForRange readPos %d", readPos);
         int bufferSize = buffer->bufferSize;
         int amountOfChannels = buffer->amountOfChannels;
         bool gotBuffer = false;
@@ -950,8 +955,11 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         if (useInternalPointer)
             readPos = _readPointer;
 
-        int eventStart = _eventStart;
-        int eventEnd = getEventEnd();
+//        int eventStart = _eventStart;
+//        int eventEnd = getEventEnd();
+        // replace assignment to point to bufferRange instead of eventStart/End
+        int eventStart = getBufferRangeStart();
+        int eventEnd = getBufferRangeEnd();
 
         SAMPLE_TYPE *srcBuffer;
 
@@ -1077,6 +1085,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 
                     if (++readPos > eventEnd && _loopeable)
                         readPos = eventStart;
+
                 }
             } else { // backward
 //                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
@@ -1113,12 +1122,15 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
 
                     if (--readPos < eventStart && _loopeable)
                         readPos = eventEnd;
+
                 }
             }
 
         }
+        __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE, "SampleEvent::getBufferForRange readPos %d", readPos);
 
-        if (useInternalPointer)
+        // hack - always update _readPointer
+//        if (useInternalPointer)
             _readPointer = readPos;
 
         return gotBuffer;

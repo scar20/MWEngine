@@ -23,6 +23,7 @@
 #ifndef __MWENGINE__JAVAUTILITIES_H_INCLUDED
 #define __MWENGINE__JAVAUTILITIES_H_INCLUDED
 
+#include "../audiobuffer.h"
 #include "javabridge.h"
 
 /**
@@ -63,6 +64,8 @@ class JavaUtilities
         static bool createTableFromFile( jstring tableId, jstring aWAVFilePath );
 
         static void setCpuCores( jintArray cpuCores, jint amountOfCores );
+
+        static short* bufferToPCM(AudioBuffer* aBuffer);
 };
 } // E.O namespace MWEngine
 

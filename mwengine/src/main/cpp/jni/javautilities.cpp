@@ -30,6 +30,7 @@
 #include <sys/types.h>
 #include <android/asset_manager.h>
 #include <android/asset_manager_jni.h>
+#include <utilities/wavewriter.h>
 
 namespace MWEngine {
 
@@ -231,6 +232,11 @@ void JavaUtilities::setCpuCores( jintArray cpuCores, jint amountOfCores )
     }
 
     JavaBridge::getEnvironment()->ReleaseIntArrayElements( cpuCores, c_array, 0 );
+}
+
+short* JavaUtilities::bufferToPCM( AudioBuffer* aBuffer)
+{
+    return WaveWriter::bufferToPCM( aBuffer );
 }
 
 } // E.O namespace MWEngine
