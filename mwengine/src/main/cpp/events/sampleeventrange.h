@@ -41,6 +41,9 @@ namespace MWEngine {
         // set playback direction
         void setPlaybackDirection(bool forward);
 
+        // convenience
+        void setID(int id);
+
         // use this method in case your samples are at a different sampling rate
         // than the engine (for instance read from WAV file created externally)
 
@@ -86,6 +89,8 @@ namespace MWEngine {
 
         // play direction
         bool _isForward;
+        // convenience
+        int _id;
 
         // total sample range
 

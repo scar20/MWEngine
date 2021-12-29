@@ -219,6 +219,10 @@ namespace MWEngine {
         _isForward = forward;
     }
 
+    void SampleEventRange::setID(int id) {
+        _id = id;
+    }
+
     float SampleEventRange::getPlaybackRate() {
         return _playbackRate;
     }
@@ -273,7 +277,7 @@ namespace MWEngine {
 
         // write sample contents into live buffer
         // we specify the maximum buffer position as the full sample playback range
-        mixBuffer(outputBuffer, _lastPlaybackPosition, 0, getBufferRangeLength());
+        mixBuffer(outputBuffer, _lastPlaybackPosition, 0, _eventLength);
 
         // Forgot to add test for forward/backward here so here it is
         if (_isForward)
@@ -284,7 +288,7 @@ namespace MWEngine {
 
                 if (!_loopeable) {
                     stop();
-                    Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, 1);
+                    Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, _id );
                     __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
                                         "SampleEventRange::getBufferForRange END_REACHED, forward");
                 }
@@ -301,12 +305,12 @@ namespace MWEngine {
 
                 if (!_loopeable) {
                     stop();
-                    Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, 1);
+                    Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, _id);
                     __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
                                         "SampleEventRange::getBufferForRange END_REACHED, backward");
                 }
                 else
-                    _lastPlaybackPosition = std::min(_bufferRangeEnd,
+                    _lastPlaybackPosition = std::max(_bufferRangeEnd,
                                                      _lastPlaybackPosition + getBufferRangeLength());
             }
         }
@@ -333,29 +337,19 @@ namespace MWEngine {
         playbackPos = _readPointer;
 
 //        int eventStart = _eventStart;
-        int eventEnd = getEventEnd();
+//        int eventEnd = getEventEnd();
         // replace assignment to point to bufferRange instead of eventStart/End
         int eventStart = getBufferRangeStart();
 //        int eventEnd = getBufferRangeEnd();
+        int eventEnd = _bufferRangeEnd;
 
         SAMPLE_TYPE *srcBuffer;
 
-
-
-        // custom playback speed
-//            __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-//                                "SampleEventRange::getBufferForRange _playbackRate==custom, forward");
         int t;
         SAMPLE_TYPE s1, s2;
         float bufferRangeEnd = (float) getBufferRangeEnd();
         float bufferRangeStart = (float) getBufferRangeStart();
         float frac;
-        /////////////// EXPERIMENT parameter smoothing ///////////////
-        float playFrac;
-        if (_playbackRate != _lastPlaybackRate) {
-            playFrac = (_playbackRate - _lastPlaybackRate) / (float) bufferSize - 1;
-//                playFrac = playFrac / (float) bufferSize-1;
-        }
 
         if (_isForward) { // EXPERIMENTAL playback direction
             for (int i = 0; i < bufferSize; ++i) {
@@ -379,17 +373,8 @@ namespace MWEngine {
                         targetBuffer[i] += ((s1 + (s2 - s1) * frac) * _volume);
                     }
 
-                    // modified using round and >= as in the same test in mixBuffer
-                    // to prevent crash if bufferRangeEnd = eventEnd
-                    float max = std::min(bufferRangeEnd, (float) eventEnd);
-//                        if ((_rangePointerF += _playbackRate) > max)
                     if ((_rangePointerF += _playbackRate) > (float) _bufferRangeEnd)
                         _rangePointerF = (float) _bufferRangeStart;
-//                        if (_rangePointerF += _playbackRate > bufferRangeEnd)
-//                            _rangePointerF = (float) _bufferRangeStart;
-//                        if ((_rangePointerF += _lastPlaybackRate) > bufferRangeEnd)
-//                            _rangePointerF = (float) _bufferRangeStart;
-//                        _lastPlaybackRate += playFrac;
 
                     gotBuffer = true;
                 }
@@ -397,13 +382,14 @@ namespace MWEngine {
                 // if this is a loopeable sample (thus using internal read pointer)
                 // set the read pointer to the sample start so it keeps playing indefinitely
 
-                if (++playbackPos > eventEnd && _loopeable)
+//                if (++playbackPos > eventEnd && _loopeable)
+//                    playbackPos = eventStart;
+                if (++playbackPos > getEventEnd() && _loopeable)
                     playbackPos = eventStart;
 
             }
         } else { // backward
-//                __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-//                                    "SampleEventRange::getBufferForRange _playbackRate==custom, backward");
+
             for (int i = 0; i < bufferSize; ++i) {
                 // read sample when the read pointer is within sample start and end points
                 if (playbackPos >= eventStart && playbackPos <= eventEnd) {
@@ -436,6 +422,8 @@ namespace MWEngine {
 
                 if (--playbackPos < eventStart && _loopeable)
                     playbackPos = eventEnd;
+//                if (--playbackPos < eventStart && _loopeable)
+//                    playbackPos = getBufferRangeEnd();
 
             }
         }
@@ -444,7 +432,7 @@ namespace MWEngine {
 
         // hack - always update _readPointer
 //        if (useInternalPointer)
-//            _readPointer = playbackPos;
+//        _lastPlaybackPosition = playbackPos;
         _readPointer = (int)_rangePointerF; // report -RangePointerF instead;
 
         return;
@@ -455,6 +443,9 @@ namespace MWEngine {
     void SampleEventRange::init( BaseInstrument* instrument )
     {
         BaseAudioEvent::init();
+
+        _isForward            = true;
+        _id                   = 0;
 
         _bufferRangeStart     = 0;
         _bufferRangeEnd       = 0;
