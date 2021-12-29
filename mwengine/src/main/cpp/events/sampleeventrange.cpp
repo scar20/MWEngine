@@ -11,8 +11,6 @@
 #include <definitions/notifications.h>
 
 namespace MWEngine {
-    bool USE_CUSTOM_RATE_ONLY = false;
-    bool ALLWAY_USE_RANGE = true;
 
 /* constructor / destructor */
 
@@ -116,7 +114,7 @@ namespace MWEngine {
             setBufferRangeEnd(_buffer->bufferSize - 1);
 
         _bufferRangeLength = (_bufferRangeEnd - _bufferRangeStart) + 1;
-        setRangeBasedPlayback(_bufferRangeLength != _eventLength);
+
     }
 
     int SampleEventRange::getBufferRangeEnd() {
@@ -139,7 +137,7 @@ namespace MWEngine {
             _bufferRangeStart = std::max(_bufferRangeEnd - 1, 0);
 
         _bufferRangeLength = (_bufferRangeEnd - _bufferRangeStart) + 1;
-        setRangeBasedPlayback(getBufferRangeLength() != getEventLength());
+
     }
 
     int SampleEventRange::getBufferRangeLength() {
@@ -207,7 +205,6 @@ namespace MWEngine {
 
         _bufferRangeStart = 0;
         setBufferRangeEnd(_bufferRangeStart + (_eventLength - 1)); // also updates range length
-        setRangeBasedPlayback(false);
 
         _updateAfterUnlock = false; // unnecessary
 
@@ -450,7 +447,7 @@ namespace MWEngine {
 //            _readPointer = playbackPos;
         _readPointer = (int)_rangePointerF; // report -RangePointerF instead;
 
-        return gotBuffer;
+        return;
     }
 
 /* protected methods */
@@ -467,15 +464,13 @@ namespace MWEngine {
         _crossfadeStart       = 0;
         _crossfadeEnd         = 0;
         _readPointer          = 0;
-        _loopStartOffset      = 0;
-        _loopEndOffset        = 0;
+
         _rangePointer         = 0;     // integer for non altered playback rates
         _rangePointerF        = 0.f;   // floating point for alternate playback rates
         _lastPlaybackPosition = 0;
         _playbackRate         = 1.f;
         _readPointerF         = 0.f;
         _destroyableBuffer    = false; // is referenced via SampleManager !
-        _useBufferRange       = false;
         _instrument           = instrument;
         _sampleRate           = ( unsigned int ) AudioEngineProps::SAMPLE_RATE;
     }
@@ -486,10 +481,10 @@ namespace MWEngine {
             // calculate the amount of samples we deem satisfactory to prevent popping at non-zero crossings
             int samplesToFade = BufferUtility::millisecondsToBuffer(_crossfadeMs,
                                                                     AudioEngineProps::SAMPLE_RATE);
-            _crossfadeStart = _loopEndOffset - samplesToFade; // at end of sample, prior to looping
-            _crossfadeEnd = _loopStartOffset + samplesToFade; // from beginning of loop start offset
+            _crossfadeStart = _bufferRangeEnd - samplesToFade; // at end of sample, prior to looping
+            _crossfadeEnd = _bufferRangeStart + samplesToFade; // from beginning of loop start offset
         } else {
-            _crossfadeStart = _loopEndOffset;
+            _crossfadeStart = _bufferRangeEnd;
             _crossfadeEnd = 0;
         }
     }

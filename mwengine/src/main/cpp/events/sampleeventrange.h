@@ -19,7 +19,7 @@ namespace MWEngine {
     public:
         SampleEventRange();
         SampleEventRange( BaseInstrument* aInstrument );
-        virtual ~SampleEvent();
+        virtual ~SampleEventRange();
 
         void play();
 
@@ -99,8 +99,6 @@ namespace MWEngine {
         int _crossfadeStart; // the amount of samples to crossfade when about to loop
         int _crossfadeEnd;   // the amount of samples to crossfade when reading from the loop offset
         int _readPointer;    // when loopeable, used internally to keep track of last read buffer offset
-        int _loopStartOffset;
-        int _loopEndOffset;
 
         // sample buffer regions (i.e. the sample contents thar are played)
 
