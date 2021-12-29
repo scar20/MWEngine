@@ -65,7 +65,7 @@ class JavaUtilities
 
         static void setCpuCores( jintArray cpuCores, jint amountOfCores );
 
-        static short* bufferToPCM(AudioBuffer* aBuffer);
+        static INT16* bufferToPCM(AudioBuffer* aBuffer);
 };
 } // E.O namespace MWEngine
 

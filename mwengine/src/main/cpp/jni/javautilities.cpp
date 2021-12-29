@@ -234,7 +234,7 @@ void JavaUtilities::setCpuCores( jintArray cpuCores, jint amountOfCores )
     JavaBridge::getEnvironment()->ReleaseIntArrayElements( cpuCores, c_array, 0 );
 }
 
-short* JavaUtilities::bufferToPCM( AudioBuffer* aBuffer)
+INT16* JavaUtilities::bufferToPCM( AudioBuffer* aBuffer)
 {
     return WaveWriter::bufferToPCM( aBuffer );
 }

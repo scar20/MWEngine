@@ -61,6 +61,7 @@ set(MWENGINE_CORE_SOURCES ${CPP_SRC}/global.cpp
                           ${CPP_SRC}/events/baseaudioevent.cpp
                           ${CPP_SRC}/events/basecacheableaudioevent.cpp
                           ${CPP_SRC}/events/sampleevent.cpp
+                          ${CPP_SRC}/events/sampleeventrange.cpp
                           ${CPP_SRC}/generators/envelopegenerator.cpp
                           ${CPP_SRC}/generators/wavegenerator.cpp
                           ${CPP_SRC}/instruments/baseinstrument.cpp

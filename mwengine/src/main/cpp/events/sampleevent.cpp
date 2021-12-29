@@ -923,7 +923,7 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
         // Forgot to add test for forward/backward here so here it is
         if (_isForward)
         {
-            if ((_lastPlaybackPosition += outputBuffer->bufferSize) >= getBufferRangeEnd()) {
+            if ((_lastPlaybackPosition += outputBuffer->bufferSize) >= _bufferRangeStart + getBufferRangeLength()) {
                 // if this is a one-shot SampleEvent, remove it from the sequencer when we have exceeded
                 // the sample length (e.g. played it in its entirety)
 
@@ -977,10 +977,10 @@ SampleEvent::SampleEvent( BaseInstrument* aInstrument )
             readPos = _readPointer;
 
 //        int eventStart = _eventStart;
-//        int eventEnd = getEventEnd();
+        int eventEnd = getEventEnd();
         // replace assignment to point to bufferRange instead of eventStart/End
         int eventStart = getBufferRangeStart();
-        int eventEnd = getBufferRangeEnd();
+//        int eventEnd = getBufferRangeEnd();
 
         SAMPLE_TYPE *srcBuffer;
 
