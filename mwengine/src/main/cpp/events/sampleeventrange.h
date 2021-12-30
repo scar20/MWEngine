@@ -41,7 +41,7 @@ namespace MWEngine {
         // set playback direction
         void setPlaybackDirection(bool forward);
 
-        // convenience
+        // convenience for notification - set by calling app
         void setID(int id);
 
         // use this method in case your samples are at a different sampling rate

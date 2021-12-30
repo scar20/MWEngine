@@ -218,7 +218,7 @@ namespace MWEngine {
     void SampleEventRange::setPlaybackDirection(bool forward) {
         _isForward = forward;
     }
-
+// ADDED for notification ID - will be set by calling app, default = 0
     void SampleEventRange::setID(int id) {
         _id = id;
     }
@@ -282,36 +282,43 @@ namespace MWEngine {
         // Forgot to add test for forward/backward here so here it is
         if (_isForward)
         {
-            if ((_lastPlaybackPosition += outputBuffer->bufferSize) >= _bufferRangeStart + getBufferRangeLength()) {
+            if ((_readPointer += outputBuffer->bufferSize) >= _bufferRangeEnd) {
+//            if ((_lastPlaybackPosition += outputBuffer->bufferSize) >= _bufferRangeStart + getBufferRangeLength()) {
                 // if this is a one-shot SampleEventRange, remove it from the sequencer when we have exceeded
                 // the sample length (e.g. played it in its entirety)
 
                 if (!_loopeable) {
                     stop();
                     Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, _id );
-                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                        "SampleEventRange::getBufferForRange END_REACHED, forward");
+//                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                        "SampleEventRange::getBufferForRange END_REACHED, forward");
                 }
                 else
-                    _lastPlaybackPosition = std::max(_bufferRangeStart,
-                                                     _lastPlaybackPosition - getBufferRangeLength());
+                    _readPointer = _bufferRangeStart;
+//                    _lastPlaybackPosition = std::max(_bufferRangeStart,
+//                                                     _lastPlaybackPosition - getBufferRangeLength());
             }
         }
         else // backward
         {
-            if ((_lastPlaybackPosition -= outputBuffer->bufferSize) <= getBufferRangeStart()) {
+            if ((_readPointer -= outputBuffer->bufferSize) <= _bufferRangeStart) {
+//            if ((_lastPlaybackPosition -= outputBuffer->bufferSize) <= getBufferRangeStart()) {
                 // if this is a one-shot SampleEventRange, remove it from the sequencer when we have exceeded
                 // the sample length (e.g. played it in its entirety)
 
                 if (!_loopeable) {
                     stop();
                     Notifier::broadcast(Notifications::MARKER_POSITION_REACHED, _id);
-                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
-                                        "SampleEventRange::getBufferForRange END_REACHED, backward");
+//                    __android_log_print(ANDROID_LOG_DEBUG, TAG_SAMPLE,
+//                                        "SampleEventRange::getBufferForRange END_REACHED, backward");
                 }
                 else
-                    _lastPlaybackPosition = std::max(_bufferRangeEnd,
-                                                     _lastPlaybackPosition + getBufferRangeLength());
+//                    _lastPlaybackPosition = std::min(_bufferRangeEnd,
+//                                                     _lastPlaybackPosition - getBufferRangeLength());
+                    _readPointer = _bufferRangeEnd;
+//                    _lastPlaybackPosition = std::max(_bufferRangeEnd,
+//                                                     _lastPlaybackPosition + getBufferRangeLength());
+
             }
         }
     }
