@@ -440,7 +440,7 @@ namespace MWEngine {
         // hack - always update _readPointer
 //        if (useInternalPointer)
 //        _lastPlaybackPosition = playbackPos;
-        _readPointer = (int)_rangePointerF; // report -RangePointerF instead;
+        _readPointer = std::round(_rangePointerF); // report -RangePointerF instead;
 
         return;
     }
