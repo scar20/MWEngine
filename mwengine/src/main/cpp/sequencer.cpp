@@ -121,13 +121,6 @@ bool Sequencer::getAudioEvents( std::vector<AudioChannel*>* channels, int buffer
     return loopStarted;
 }
 
-void Sequencer::updateEvents()
-{
-    for ( auto & instrument : instruments ) {
-        instrument->updateEvents();
-    }
-}
-
 void Sequencer::clearEvents()
 {
     for ( auto & instrument : instruments ) {
@@ -143,12 +136,9 @@ void Sequencer::collectSequencedEvents( BaseInstrument* instrument, int bufferPo
 
     AudioChannel* channel = instrument->audioChannel;
 
-    instrument->toggleReadLock( true ); // lock the events vector while sequencing
-
     auto audioEvents = instrument->getEventsForMeasure( measure );
 
     if ( audioEvents == nullptr ) {
-        instrument->toggleReadLock( false ); // release the mutex !
         return;
     }
 
@@ -196,14 +186,11 @@ void Sequencer::collectSequencedEvents( BaseInstrument* instrument, int bufferPo
         }
     }
 
-    instrument->toggleReadLock( false ); // release mutex
-
     // removal queue filled ? process it so we can safely
     // remove "deleted" AudioEvents without errors occurring
     if ( !removes.empty() )
     {
         total = removes.size();
-
         for ( i = 0; i < total; i++ )
         {
             BaseAudioEvent* audioEvent = removes[ i ];
@@ -217,12 +204,10 @@ void Sequencer::collectLiveEvents( BaseInstrument* instrument )
 {
     AudioChannel* channel = instrument->audioChannel;
 
-    instrument->toggleReadLock( true ); // lock the events vector while sequencing
     std::vector<BaseAudioEvent*>* liveEvents = instrument->getLiveEvents();
 
-    // we deliberately query size() during iteration in case BaseAudioEvent.stop()
-    // is called during read. This is an exceptional issue that resolves upon next render iteration
-    for ( size_t i = 0; i < liveEvents->size(); i++ )
+    size_t total = liveEvents->size();
+    for ( size_t i = 0; i < total; i++ )
     {
         BaseAudioEvent* audioEvent = liveEvents->at( i );
 
@@ -232,7 +217,6 @@ void Sequencer::collectLiveEvents( BaseInstrument* instrument )
             removes.push_back( audioEvent );
         }
     }
-    instrument->toggleReadLock( false ); // release mutex
 
     // removal queue filled ? process it so we can safely
     // remove "deleted" AudioEvents without errors occurring
