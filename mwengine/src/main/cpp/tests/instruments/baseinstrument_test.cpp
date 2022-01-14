@@ -108,7 +108,7 @@ TEST( BaseInstrument, Events )
     }
 
     ASSERT_TRUE( wasPresent )
-        << "expected added event to be present in instruments event list after addition";
+        << "expected added event to be present in instruments sequenced event list after addition";
 
     // remove event
 
@@ -125,7 +125,7 @@ TEST( BaseInstrument, Events )
     }
 
     ASSERT_FALSE( wasPresent )
-        << "expected event not to be present in events list after removal";
+        << "expected event not to be present in sequenced events list after removal";
 
     // add a live event
 
@@ -151,8 +151,11 @@ TEST( BaseInstrument, Events )
 
     liveEvent->removeFromSequencer();
 
-    ASSERT_FALSE( instrument->hasLiveEvents() )
-        << "expected instrument to contain no live events after removal";
+    ASSERT_TRUE( instrument->hasLiveEvents() )
+        << "expected instrument to still contain live events after removal";
+
+    ASSERT_TRUE( liveEvent->isDeletable() )
+        << "expected live event to be marked as deletable so it can be removed by the Sequencer";
 
     wasPresent = false;
     for ( int i = 0; i < instrument->getLiveEvents()->size(); i++ )
@@ -161,8 +164,10 @@ TEST( BaseInstrument, Events )
             wasPresent = true;
     }
 
-    ASSERT_FALSE( wasPresent )
-        << "expected event not to be present in live events list after removal";
+    ASSERT_TRUE( wasPresent )
+        << "expected event to be present in live events list after removal as the Sequencer must remove it";
+
+    instrument->clearEvents();
 
     // remove event method test
 
@@ -177,7 +182,7 @@ TEST( BaseInstrument, Events )
     }
 
     ASSERT_FALSE( wasPresent )
-        << "expected event not to be present in event list after removal";
+        << "expected event not to be present in sequenced event list after removal";
 
     // remove event method test with live event
 
@@ -235,15 +240,13 @@ TEST( BaseInstrument, UpdateEvents )
 
     // increase tempo by given factor
 
-    float factor = 2.0f;
-
-    AudioEngine::tempo *= factor;
+    float factor = 0.5F; // previous 120 BPM / desired new 240 BPM
 
     // invoke updateEvents() (would have been executed by the Sequencer when running)
 
-    instrument->updateEvents();
+    instrument->updateEvents( factor );
 
-    int expectedEventStart = ( int ) ( eventStart / factor );
+    int expectedEventStart = ( int ) ( eventStart * factor );
     int expectedEventEnd   = expectedEventStart + ( eventLength - 1 );
 
     EXPECT_EQ( expectedEventStart, event->getEventStart() )
@@ -257,10 +260,9 @@ TEST( BaseInstrument, UpdateEvents )
 
     // decrease tempo again by given factor
 
-    factor = 0.5f;  // restores to original
-    AudioEngine::tempo *= factor;
+    factor = 2.F; // restores to original (previous 240 BPM / desired new 120 BPM)
 
-    instrument->updateEvents();
+    instrument->updateEvents( factor );
 
     EXPECT_EQ( eventStart, event->getEventStart() )
         << "expected event start offset to have updated after tempo change and invocation of updateEvents()";
