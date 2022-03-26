@@ -11,7 +11,8 @@ buildscript {
 }
 
 android {
-    compileSdkVersion 30
+    compileSdkVersion 31
+    ndkVersion '23.1.7779620'
 
     defaultConfig {
         // NOTE: the value of minSdkVersion is used by the native build as the target APP_PLATFORM
@@ -21,7 +22,7 @@ android {
         // thus set the value of minSdkVersion to whatever fits your use case.
 
         minSdkVersion 16
-        targetSdkVersion 30
+        targetSdkVersion 31
         versionCode 1
         versionName "1.0.0"
 
