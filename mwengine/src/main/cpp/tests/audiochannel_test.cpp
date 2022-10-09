@@ -58,19 +58,8 @@ TEST( AudioChannel, InstanceId )
     EXPECT_EQ( firstInstanceId + 1, audioChannel2->instanceId )
         << "expected second AudioChannel to have an id 1 higher than the first";
 
-    // 3. delete events (should decrement instance ids)
-
     delete audioChannel;
     delete audioChannel2;
-
-    // 4. create third channel
-    // TODO: destructor doesn't seem to do anything ??
-//    audioChannel = new AudioChannel( volume );
-//
-//    EXPECT_EQ( firstInstanceId, audioChannel->instanceId )
-//        << "expected old instance id to be equal to the new AudioChannel id as the old events have been disposed";
-//
-//    delete audioChannel;
 }
 
 TEST( AudioChannel, Events )
@@ -255,6 +244,23 @@ TEST( AudioChannel, Caching )
     delete audioBuffer;
 }
 
+TEST( AudioChannel, Mono )
+{
+    AudioChannel* audioChannel = new AudioChannel( 1.0f );
+
+    AudioEngineProps::OUTPUT_CHANNELS = 1;
+    audioChannel->createOutputBuffer();
+
+    ASSERT_TRUE( audioChannel->isMono ) << "expected AudioChannel to be a mono channel";
+
+    AudioEngineProps::OUTPUT_CHANNELS = 2;
+    audioChannel->createOutputBuffer();
+
+    ASSERT_FALSE( audioChannel->isMono ) << "expected AudioChannel not to be a mono channel";
+
+    delete audioChannel;
+}
+
 TEST( AudioChannel, Panning )
 {
     AudioChannel* audioChannel = new AudioChannel( 1.0f );
@@ -295,8 +301,8 @@ TEST( AudioChannel, MixPannedBuffer )
     audioChannel->setPan( 0.3 ); // set pan slightly to the right
     audioChannel->mixBuffer( mixBuffer, 1 );
 
-    ASSERT_TRUE( compareFloat( 0.7, tgtLeft[0])) << "expected left channel signal to be 0.7 for a +0.3 pan";
-    ASSERT_TRUE( compareFloat( 0.3, tgtRight[0])) << "expected right channel signal to be 0.3 for a +0.3 pan";
+    ASSERT_TRUE( compareFloatThreeDecimals( 0.891, tgtLeft[0]));
+    ASSERT_TRUE( compareFloatThreeDecimals( 0.453, tgtRight[0]));
 
     mixBuffer->silenceBuffers(); // clean up mix buffer contents
 
@@ -308,8 +314,8 @@ TEST( AudioChannel, MixPannedBuffer )
     audioChannel->setPan( -0.7 ); // set pan slightly to the left
     audioChannel->mixBuffer( mixBuffer, 1 );
 
-    ASSERT_TRUE( compareFloat( 0.7, tgtLeft[0])) << "expected left channel signal to be 0.7 for a -0.7 pan";;
-    ASSERT_TRUE( compareFloat( 0.3, tgtRight[0])) << "expected right channel signal to be 0.3 for a +0.3 pan";
+    ASSERT_TRUE( compareFloatThreeDecimals( 0.891, tgtLeft[0]));
+    ASSERT_TRUE( compareFloatThreeDecimals( 0.453, tgtRight[0]));
 
     delete audioChannel;
     delete mixBuffer;

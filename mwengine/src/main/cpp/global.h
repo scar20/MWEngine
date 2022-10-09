@@ -87,11 +87,15 @@ namespace AudioEngineProps
 
 #if PRECISION == 1 // float
     typedef float SAMPLE_TYPE;
+    #define SILENCE 0.f
+    #define MAX_VOLUME 1.f
     #define undenormalise(sample) ((((*(UINT32 *)&(sample))&0x7f800000)==0)&&((sample)!=0.f))
 #endif
 
 #if PRECISION == 2 // double
     typedef double SAMPLE_TYPE;
+    #define SILENCE 0.0
+    #define MAX_VOLUME 1.0
     #define undenormalise(sample) ((((((UINT32 *)&(sample))[1])&0x7fe00000)==0)&&((sample)!=0.f))
 #endif
 
@@ -101,10 +105,11 @@ namespace AudioEngineProps
 // maximum volume output of the engine (prevents clipping of extremely hot signals)
 #define MAX_OUTPUT 0.98F
 
-// math
+// math caches
 
-const SAMPLE_TYPE PI     = atan( 1 ) * 4;
-const SAMPLE_TYPE TWO_PI = PI * 2.0;
+const SAMPLE_TYPE PI      = atan( 1 ) * 4;
+const SAMPLE_TYPE TWO_PI  = PI * 2.0;
+const SAMPLE_TYPE HALF_PI = PI / 2.0;
 
 // other
 
@@ -114,6 +119,11 @@ const int WAVE_TABLE_PRECISION = 128; // the amount of samples contained within 
 
 // noops used to keep the CPU seemingly busy on less intensive render iterations
 // this allows us to maintain a consistent thread performance across render iterations (see PerfUtility)
+
+// __i386__ == Intel 32-bit architecture
+// __x86_64__ == Intel 64-bit architecture
+// __arm__ and __mips__ == both 32-bit architectures
+// __aarch64__ == ARM 64-bit
 
 #if defined(__i386__) || defined(__x86_64__)
 #define noop() asm volatile("rep; nop" ::: "memory");

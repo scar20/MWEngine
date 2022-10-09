@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2022 Igor Zinken - https://www.igorski.nl
+ * Copyright (c) 2022 Igor Zinken - https://www.igorski.nl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -20,51 +20,38 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __MWENGINE__DELAY_H_INCLUDED__
-#define __MWENGINE__DELAY_H_INCLUDED__
+#ifndef __MWENGINE__GAIN_H_INCLUDED__
+#define __MWENGINE__GAIN_H_INCLUDED__
 
 #include "baseprocessor.h"
-#include <utilities/bufferutility.h>
+#include <global.h>
 
 namespace MWEngine {
-class Delay : public BaseProcessor
+class Gain : public BaseProcessor
 {
     public:
-        Delay( int aDelayTime, int aMaxDelayTime, float aMix, float aFeedback, int amountOfChannels );
-        ~Delay();
+        static constexpr SAMPLE_TYPE MIN_GAIN = SILENCE;
+        static constexpr SAMPLE_TYPE MAX_GAIN = 20;
+
+        Gain();
+        Gain( float amount );
+        ~Gain();
 
         std::string getType() {
-            return std::string( "Delay" );
+            return std::string( "Gain" );
         }
 
-        int addedDurationInSamples() {
-            return BufferUtility::millisecondsToBuffer(
-                getDelayTime() * ( int ) ( 10.f * getFeedback() ),
-                AudioEngineProps::SAMPLE_RATE
-            );
-        }
-
-        int getDelayTime();
-        void setDelayTime( int aValue );
-        float getMix();
-        void setMix( float aValue );
-        float getFeedback();
-        void setFeedback( float aValue );
-        void reset();
+        float getAmount();
+        void setAmount( float value );
 
 #ifndef SWIG
         // internal to the engine
         void process( AudioBuffer* sampleBuffer, bool isMonoSource );
+        bool isCacheable();
 #endif
 
-    protected:
-        AudioBuffer* _delayBuffer;
-        int* _delayIndices;
-        int _time;
-        int _maxTime;
-        float _mix;
-        float _feedback;
-        int _amountOfChannels;
+    private:
+        SAMPLE_TYPE _amount;
 };
 } // E.O namespace MWEngine
 
