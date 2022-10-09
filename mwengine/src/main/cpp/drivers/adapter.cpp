@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2017-2020 Igor Zinken - https://www.igorski.nl
+ * Copyright (c) 2017-2022 Igor Zinken - https://www.igorski.nl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -44,6 +44,7 @@ namespace DriverAdapter {
         }
 
         _driver = driver;
+        int bursts;
 
         switch ( _driver ) {
 
@@ -74,7 +75,17 @@ namespace DriverAdapter {
                 // TODO: allow specifying these from the outside?
                 // driver_aAudio->setDeviceId();
                 // driver_aAudio->setRecordingDeviceId();
-                driver_aAudio->setBufferSizeInBursts( 1 ); // Google provides {0, 1, 2, 4, 8} as values
+
+                bursts = 0; // Google provides {0, 1, 2, 4, 8} as values
+
+#if defined(__arm__)
+    // Cortex-A53-derivatives (SC9863A|Cortex-A55) are NOT running 64-bit (__aarch64__) and struggle severely
+    if ( AudioEngineProps::CPU_CORES.size() == 0 ) {
+        Debug::log( "DriverAdapter::32-bit ARM without exclusive cores detected, increasing bursts for increased playback stability" );
+        bursts = 2;
+    }
+#endif
+                driver_aAudio->setBufferSizeInBursts( bursts );
 
                 return true;
 
@@ -82,7 +93,7 @@ namespace DriverAdapter {
 
             case Drivers::MOCKED:
 
-                Debug::log( "DriverAdapter::initializing mocked driver");
+                Debug::log( "DriverAdapter::initializing mocked driver" );
                 driver_mocked = new Mock_IO();
 
                 return true;
@@ -166,9 +177,24 @@ namespace DriverAdapter {
 #endif
                 return 0;
             case Drivers::OPENSL:
-                return android_AudioIn( driver_openSL, recordBuffer, AudioEngineProps::BUFFER_SIZE );
+                return android_AudioIn( driver_openSL, recordBuffer, amountOfSamples );
             case Drivers::AAUDIO:
-                return driver_aAudio->getEnqueuedInputBuffer( recordBuffer, amountOfSamples );
+                return driver_aAudio->getEnqueuedInputBuffer( recordBuffer );
+        }
+    }
+
+    int getLatency()
+    {
+        switch ( _driver ) {
+            default:
+#ifdef MOCK_ENGINE
+            case Drivers::MOCKED:
+#endif
+                return 0;
+            case Drivers::OPENSL:
+                return 0; // TODO (if we care...) how to calculate latency using OpenSL driver
+            case Drivers::AAUDIO:
+                return driver_aAudio->getOutputLatency();
         }
     }
 }
