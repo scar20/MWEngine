@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2022 Igor Zinken - https://www.igorski.nl
+ * Copyright (c) 2022 Igor Zinken - https://www.igorski.nl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -20,34 +20,41 @@
  * IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#ifndef __MWENGINE__AUDIOBUFFER_H_INCLUDED__
-#define __MWENGINE__AUDIOBUFFER_H_INCLUDED__
+#ifndef __MWENGINE__RESIZABLE_BUFFERGROUP_H_INCLUDED__
+#define __MWENGINE__RESIZABLE_BUFFERGROUP_H_INCLUDED__
 
-#include "global.h"
+#include "audiobuffer.h"
+#include "resizable_audiobuffer.h"
 #include <vector>
 
 namespace MWEngine {
-class AudioBuffer
+class ResizableBufferGroup
 {
     public:
-        AudioBuffer( int aAmountOfChannels, int aBufferSize );
-        ~AudioBuffer();
+        ResizableBufferGroup( int bufferAmount, int amountOfChannels, int bufferSize );
+        ~ResizableBufferGroup();
 
-        int amountOfChannels;
-        int bufferSize;
-        bool loopeable;
+        ResizableAudioBuffer* getBufferAtIndex( int index );
 
-        SAMPLE_TYPE* getBufferForChannel( int aChannelNum );
-        int mergeBuffers( AudioBuffer* aBuffer, int aReadOffset, int aWriteOffset, SAMPLE_TYPE aMixVolume );
-        bool isSilent();
-        void silenceBuffers();
-        void adjustBufferVolumes( SAMPLE_TYPE amp );
-        void applyMonoSource();
-        AudioBuffer* clone();
+        int getGroupSize();
 
-    protected:
-        std::vector<SAMPLE_TYPE*>* _buffers;
-        void clearVectors();
+        /**
+         * Retrieves the content of all buffers in the group within a (new!) AudioBuffer instance
+         * where every buffer within this ResizableBufferGroup has serialized its content one after
+         * the other. The size of this new buffer is equal to the size of a single buffer multiplied
+         * by the amount of buffers in this group.
+         */
+        AudioBuffer* getContentSerialized();
+
+        /**
+         * expands/shrinks the current AudioBuffers sample vectors
+         * NOTE: shrinking will keep existing content, expanding will
+         * clear the existing contents.
+         */
+        void resize( int newSize );
+
+    private:
+        std::vector<ResizableAudioBuffer*>* _buffers = nullptr;
 };
 } // E.O namespace MWEngine
 

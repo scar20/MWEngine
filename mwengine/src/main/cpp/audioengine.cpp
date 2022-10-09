@@ -33,11 +33,10 @@
 #include <utilities/bufferutility.h>
 #include <utilities/perfutility.h>
 #include <utilities/debug.h>
-#include <vector>
-
-#ifdef RECORD_TO_DISK
+#include <utilities/channelutility.h>
+#include <utilities/utils.h>
 #include <utilities/diskwriter.h>
-#endif
+#include <vector>
 
 // whether to include JNI classes to add the Java bridge
 
@@ -45,7 +44,6 @@
 
 #include <jni.h>
 #include <jni/javabridge.h>
-#include <utilities/channelutility.h>
 
 #endif
 
@@ -53,16 +51,12 @@ namespace MWEngine {
 
     /* static member initialization */
 
-    bool AudioEngine::recordOutputToDisk = false;
-    bool AudioEngine::bouncing           = false;
-    bool AudioEngine::recordInputToDisk  = false;
+    AudioEngine::RecordingSettings AudioEngine::recordingState = { false, false, false, false, false, false, 0, 0, 0 };
 
 #ifdef RECORD_DEVICE_INPUT
     float*        AudioEngine::recbufferIn  = nullptr;
     AudioChannel* AudioEngine::inputChannel = new AudioChannel( 1.0F );
 #endif
-
-    bool  AudioEngine::recordDeviceInput = false;
 
     /* tempo / sequencer position related */
 
@@ -86,10 +80,8 @@ namespace MWEngine {
 
     /* buffer read/write pointers */
 
-    int AudioEngine::bufferPosition   = 0;
-    int AudioEngine::stepPosition     = 0;
-    int AudioEngine::bounceRangeStart = 0;
-    int AudioEngine::bounceRangeEnd   = 0;
+    int AudioEngine::bufferPosition = 0;
+    int AudioEngine::stepPosition   = 0;
 
     /* output related */
 
@@ -137,21 +129,45 @@ namespace MWEngine {
         if ( thread != nullptr )
             return;
 
-        Debug::log( "STARTING engine" );
+        Debug::log( "AudioEngine::PREPARING engine" );
 
 #ifdef PREVENT_CPU_FREQUENCY_SCALING
         _noopsPerTick         = 1;
         _renderedSamples      = 0;
         _firstRenderStartTime = 0;
 #endif
-        Debug::log( "STARTED engine" );
+        // create a thread that will handle all render callbacks
+#ifdef MOCK_ENGINE
+        if ( audioDriver != Drivers::types::MOCKED ) {
+#endif
+            thread = new std::thread( initRenderTask, audioDriver );
+#ifdef MOCK_ENGINE
+        } else {
+            initRenderTask( audioDriver );
+        }
+#endif
+    }
+
+    void AudioEngine::initRenderTask( Drivers::types audioDriver ) {
+        // create the output driver using the adapter. If creation failed
+        // prevent thread start and trigger JNI callback for error handler
+
+        if ( !DriverAdapter::create( audioDriver )) {
+            Debug::log( "AudioEngine::Could not initialize audio driver of type %d", audioDriver );
+            Notifier::broadcast( Notifications::ERROR_HARDWARE_UNAVAILABLE );
+            stop();
+            return;
+        }
+
+        Debug::log( "AudioEngine::STARTED engine" );
 
         // audio hardware available, prepare environment
 
         channels       = new std::vector<AudioChannel*>();
         outputChannels = AudioEngineProps::OUTPUT_CHANNELS;
         isMono         = ( outputChannels == 1 );
-        outBuffer      = new float[ AudioEngineProps::BUFFER_SIZE * outputChannels ]();
+
+        createOutputBuffer();
 
 #ifdef RECORD_DEVICE_INPUT
 
@@ -171,39 +187,19 @@ namespace MWEngine {
 
         std::vector<BaseInstrument*> instruments = Sequencer::instruments;
 
-        for ( size_t i = 0; i < instruments.size(); ++i ) {
-            instruments[ i ]->audioChannel->createOutputBuffer();
+        for ( auto & instrument : instruments ) {
+            instrument->audioChannel->createOutputBuffer();
         }
 
-        // create a thread that will handle all render callbacks
-#ifdef MOCK_ENGINE
-        if ( audioDriver != Drivers::types::MOCKED ) {
-#endif
-            thread = new std::thread( initRenderTask, audioDriver );
-#ifdef MOCK_ENGINE
-        } else {
-            initRenderTask( audioDriver );
-        }
-#endif
-    }
+        // all ready. start render cycle
 
-    void AudioEngine::initRenderTask( Drivers::types audioDriver ) {
-        // create the output driver using the adapter. If creation failed
-        // prevent thread start and trigger JNI callback for error handler
-
-        if ( !DriverAdapter::create( audioDriver )) {
-            Debug::log( "Could not initialize audio driver" );
-            Notifier::broadcast( Notifications::ERROR_HARDWARE_UNAVAILABLE );
-            stop();
-            return;
-        }
         AudioEngineProps::isRendering.store( true );
         DriverAdapter::startRender();
     }
 
     void AudioEngine::stop()
     {
-        Debug::log( "STOPPING engine" );
+        Debug::log( "AudioEngine::STOPPING engine" );
 
         AudioEngineProps::isRendering.store( false );
         threadOptimized = false;
@@ -212,11 +208,11 @@ namespace MWEngine {
             thread->join();
             thread = nullptr;
         }
-        Debug::log( "STOPPED engine" );
+        Debug::log( "AudioEngine::STOPPED engine" );
 
         DriverAdapter::destroy();
 
-        Debug::log( "Destroyed audio driver" );
+        Debug::log( "AudioEngine::Destroyed audio driver" );
 
         // clear heap memory allocated before thread loop
         delete channels;
@@ -235,7 +231,7 @@ namespace MWEngine {
 
     void AudioEngine::reset()
     {
-        Debug::log( "RESET engine" );
+        Debug::log( "AudioEngine::RESET engine" );
 
         if ( AudioEngineProps::isRendering.load() ) {
             stop();
@@ -250,11 +246,12 @@ namespace MWEngine {
         bufferPosition    = 0;
         stepPosition      = 0;
 #ifdef RECORD_DEVICE_INPUT
-        recordDeviceInput = false;
+        recordingState.recordDeviceInput = false;
 #endif
-        recordOutputToDisk = false;
-        recordInputToDisk  = false;
-        bouncing           = false;
+        recordingState.outputToFile   = false;
+        recordingState.inputToFile    = false;
+        recordingState.correctLatency = false;
+        recordingState.bouncing       = false;
     }
 
     void AudioEngine::addChannelGroup( ChannelGroup* group )
@@ -282,6 +279,118 @@ namespace MWEngine {
 #endif
     }
 
+    void AudioEngine::setBounceOutputToFileState( int maxBuffers, char* outputFile, int rangeStart, int rangeEnd )
+    {
+        recordingState.bouncing = true;
+
+        recordingState.bounceRangeStart = rangeStart;
+        recordingState.bounceRangeEnd   = rangeEnd;
+        bufferPosition = rangeStart;
+        stepPosition   = 0;
+
+        setRecordOutputToFileState( maxBuffers, outputFile );
+    }
+
+    void AudioEngine::unsetBounceOutputToFileState()
+    {
+        recordingState.bouncing = false;
+        unsetRecordOutputToFileState();
+    }
+
+    void AudioEngine::recordDeviceInput( bool record )
+    {
+        recordingState.recordDeviceInput = record;
+    }
+
+    void AudioEngine::setRecordOutputToFileState( int maxBuffers, char* outputFile )
+    {
+        // in case Sequencer was recording input from the Android device, halt recording of input
+        if ( recordingState.inputToFile ) {
+            unsetRecordInputToFileState();
+        }
+        recordingState.outputToFile = true;
+
+        DiskWriter::prepare(
+            std::string( outputFile ), roundTo( maxBuffers, AudioEngineProps::BUFFER_SIZE ),
+            AudioEngineProps::OUTPUT_CHANNELS
+        );
+    }
+
+    void AudioEngine::unsetRecordOutputToFileState()
+    {
+        bool wasRecording = recordingState.outputToFile;
+        recordingState.outputToFile = false;
+
+        if ( wasRecording )
+        {
+            // recording halted, write currently recording snippet into file
+            // and concatenate all recorded snippets into the requested output file name
+            // we can do this synchronously as this method is called from outside the
+            // rendering thread and thus won't lead to buffer under runs
+
+            if ( DiskWriter::finish() ) {
+                Notifier::broadcast( Notifications::RECORDING_COMPLETED );
+            }
+        }
+    }
+
+    void AudioEngine::setRecordInputToFileState( int aMaxBuffers, char* aOutputFile, bool skipProcessing )
+    {
+        // in case Sequencer was recording its output, halt recording of output
+        if ( recordingState.outputToFile ) {
+            unsetRecordOutputToFileState();
+        }
+        recordingState.inputToFile = true;
+        recordingState.recordInputWithChain = !skipProcessing;
+
+        DiskWriter::prepare(
+            std::string( aOutputFile ), roundTo( aMaxBuffers, AudioEngineProps::BUFFER_SIZE ),
+            AudioEngineProps::INPUT_CHANNELS
+        );
+    }
+
+    void AudioEngine::unsetRecordInputToFileState()
+    {
+        bool wasRecording = recordingState.inputToFile;
+        recordingState.inputToFile = false;
+        if ( wasRecording )
+        {
+            // recording halted, write currently recording snippet into file
+            // and concatenate all recorded snippets into the requested output file name
+            // we can do this synchronously as this method is called from outside the
+            // rendering thread and thus won't lead to buffer under runs
+
+            if ( DiskWriter::finish() ) {
+                Notifier::broadcast( Notifications::RECORDING_COMPLETED );
+            }
+        }
+    }
+
+    void AudioEngine::setRecordFullDuplexState( float roundtripLatencyInMs, int maxBuffers, char* outputFile )
+    {
+        recordingState.correctLatency = true;
+        recordingState.latency = BufferUtility::millisecondsToBuffer(( int ) roundtripLatencyInMs, AudioEngineProps::SAMPLE_RATE );
+
+        setRecordOutputToFileState( std::max( recordingState.latency * 2, maxBuffers ), outputFile );
+        recordDeviceInput( true );
+        getInputChannel()->muted = true;
+
+        Debug::log( "full duplex recording started with latency calculated at %d samples", recordingState.latency );
+    }
+
+    void AudioEngine::unsetRecordFullDuplexState()
+    {
+        unsetRecordOutputToFileState();
+        recordDeviceInput( false );
+        getInputChannel()->muted = false;
+        recordingState.correctLatency = false;
+    }
+
+    void AudioEngine::saveRecordedSnippet( int snippetBufferIndex )
+    {
+        DiskWriter::writeBufferToFile( snippetBufferIndex, true );
+    }
+
     bool AudioEngine::render( int amountOfSamples )
     {
         size_t i, j, k, c, ci;
@@ -296,7 +405,7 @@ namespace MWEngine {
 
 #ifdef PREVENT_CPU_FREQUENCY_SCALING
 
-        int64_t renderStart = PerfUtility::now(); // for this iteration
+        auto renderStart = PerfUtility::now(); // for this iteration
 
         if ( _renderedSamples == 0 ) {
             _firstRenderStartTime = renderStart; // this is the first render, record its start time
@@ -332,13 +441,24 @@ namespace MWEngine {
 
 #ifdef RECORD_DEVICE_INPUT
         // record audio from Android device ?
-        if (( recordDeviceInput || recordInputToDisk ) && AudioEngineProps::INPUT_CHANNELS > 0 )
+        if (( recordingState.recordDeviceInput || recordingState.inputToFile ))
         {
-            int recordedSamples           = DriverAdapter::getInput( recbufferIn, amountOfSamples );
+            int recordedSamples = DriverAdapter::getInput( recbufferIn, amountOfSamples );
+            inputChannel->getOutputBuffer()->resize( recordedSamples );
             SAMPLE_TYPE* recBufferChannel = inputChannel->getOutputBuffer()->getBufferForChannel( 0 );
 
             for ( j = 0; j < recordedSamples; ++j ) {
-                recBufferChannel[ j ] = recbufferIn[ j ];//static_cast<float>( recbufferIn[ j ] );
+                recBufferChannel[ j ] = capSampleSafe( recbufferIn[ j ] ); // static_cast<float>( recbufferIn[ j ] );
+            }
+
+            // input recording is mono, spread recorded signal across all remaining output channels
+
+            inputChannel->getOutputBuffer()->applyMonoSource();
+
+            // in case we want to record the input without the ProcessingChain active, write the input now
+
+            if ( recordingState.inputToFile && !recordingState.recordInputWithChain ) {
+                DiskWriter::appendBuffer( inputChannel->getOutputBuffer() );
             }
 
             // apply processing chain onto the input
@@ -350,7 +470,7 @@ namespace MWEngine {
 
             // merge recording into current input buffer for instant monitoring
 
-            if ( inputChannel->getVolume() > 0.F ) {
+            if ( !inputChannel->muted ) {
                 inputChannel->mixBuffer( inBuffer, inputChannel->getVolume() );
             }
         }
@@ -387,13 +507,14 @@ namespace MWEngine {
 
             // ...in case the AudioChannels maxBufferPosition differs from the sequencer loop range
             // note that these buffer positions are always a full measure in length (as we loop by measures)
-            while ( bufferPos > maxBufferPosition )
+            while ( bufferPos > maxBufferPosition ) {
                 bufferPos -= samples_per_bar;
+            }
 
             // only render sequenced events when the sequencer isn't in the paused state
             // and the channel volume is actually at an audible level! ( > 0 )
 
-            if ( Sequencer::playing && amount > 0 && channelVolume > 0.0 )
+            if ( Sequencer::playing && amount > 0 && channelVolume > SILENCE )
             {
                 if ( !isCached )
                 {
@@ -454,8 +575,8 @@ namespace MWEngine {
 
             // write the channel buffer into the combined output buffer, apply channel volume
             // (note live events are always audible as their volume is relative to the instrument)
-            if ( channel->hasLiveEvents && channelVolume == 0.0 ) {
-                channelVolume = 1.0;
+            if ( channel->hasLiveEvents && channelVolume == SILENCE ) {
+                channelVolume = MAX_VOLUME;
             }
 
             // note we don't mix the channel if it belongs to a group (group will sum into the output)
@@ -487,18 +608,9 @@ namespace MWEngine {
                 // apply the master volume onto the output
                 sample = ( float ) inBuffer->getBufferForChannel(( int ) ci )[ i ] * volume;
 
-                // and perform a fail-safe check in case we're exceeding the headroom ceiling
-
-                if ( sample < -MAX_OUTPUT )
-                    sample = -MAX_OUTPUT;
-
-                else if ( sample > +MAX_OUTPUT )
-                    sample = +MAX_OUTPUT;
-
                 // write output interleaved (e.g. a sample per output channel
                 // before continuing writing the next sample for the next channel range)
-
-                outBuffer[ c + ci ] = sample;
+                outBuffer[ c + ci ] = ( float ) capSampleSafe( sample );
             }
 
             // update the buffer pointers and sequencer position
@@ -513,48 +625,83 @@ namespace MWEngine {
                     //if ( std::fmod(( float ) bufferPosition, samples_per_step ) == 0 )
                         handleSequencerPositionUpdate(( int ) i );
                 }
-                if ( marked_buffer_position > 0 && bufferPosition == marked_buffer_position )
+                if ( marked_buffer_position > 0 && bufferPosition == marked_buffer_position ) {
                      Notifier::broadcast( Notifications::MARKER_POSITION_REACHED );
-
+                }
                 bufferPosition++;
 
-                if ( bufferPosition > max_buffer_position )
+                if ( bufferPosition > max_buffer_position ) {
                     bufferPosition = min_buffer_position;
+                }
             }
         }
 
         // thread has been stopped during operations above ? exit as writing the
-        // the output into the audio hardware will lock execution until the next buffer
+        // output into the audio hardware will lock execution until the next buffer
         // is enqueued (additionally, we prevent writing to device storage when recording/bouncing)
 
-        if ( !AudioEngineProps::isRendering.load() )
+        if ( !AudioEngineProps::isRendering.load() ) {
             return false;
+        }
 
         // write the synthesized output into the audio driver (unless we are bouncing as writing the
         // output to the hardware makes it both unnecessarily audible and stalls execution)
 
-        if ( !bouncing )
+        if ( !recordingState.bouncing ) {
             DriverAdapter::writeOutput( outBuffer, amountOfSamples * outputChannels );
+        }
 
 #ifdef RECORD_TO_DISK
         // write the output to disk if a recording state is active
-        if (( Sequencer::playing && recordOutputToDisk ) || recordInputToDisk )
+        if (( Sequencer::playing && recordingState.outputToFile ) || recordingState.inputToFile )
         {
 #ifdef RECORD_DEVICE_INPUT
-            if ( recordInputToDisk ) // recording from device input ? > write the record buffer
-                DiskWriter::appendBuffer( inputChannel->getOutputBuffer() );
-            else                    // recording global output ? > write the combined buffer
-#endif
-                DiskWriter::appendBuffer( outBuffer, amountOfSamples, outputChannels );
 
+            // recording from device input ?
+            if ( recordingState.inputToFile ) {
+                // if we are recording WITH the processing chain, write to disk (otherwise pre-mix
+                // buffer was already written to disk prior to applying the processing chain)
+                if ( recordingState.recordInputWithChain ) {
+                    DiskWriter::appendBuffer( inputChannel->getOutputBuffer() );
+                }
+            } else {
+#endif
+
+                    // recording global output ? > write the combined output buffer
+
+                    bool isFullDuplexRecording = recordingState.correctLatency;
+
+                    if ( recordingState.recordDeviceInput && inputChannel->muted ) {
+                        if ( isFullDuplexRecording ) {
+                            // use alternative DiskWriter method to append and instantly mix the input when correcting latency
+                            DiskWriter::appendDuplexBuffers( outBuffer,
+                                                             inputChannel->getOutputBuffer(),
+                                                             amountOfSamples, outputChannels,
+                                                             recordingState.latency );
+                        } else {
+                            // if no latency correction is applied, mix the input with the output
+                            // since we were also recording device input with a muted input channel, we first
+                            // mix the input (not audible in the written driver output) into the output buffer
+                            inputChannel->mixBuffer( inBuffer, inputChannel->getVolume() );
+                            BufferUtility::mixBufferInterleaved( inBuffer, outBuffer, amountOfSamples, outputChannels );
+                        }
+                    }
+
+                    if ( !isFullDuplexRecording ) {
+                        // actual writing of audio into the DiskWriter buffer
+                        DiskWriter::appendBuffer( outBuffer, amountOfSamples, outputChannels );
+                    }
+
+#ifdef RECORD_DEVICE_INPUT
+            }
+#endif
             // are we bouncing the current sequencer range and have we played through the full range?
 
-            if ( bouncing && ( loopStarted || bufferPosition == bounceRangeStart || bufferPosition >= bounceRangeEnd ))
+            if ( recordingState.bouncing && ( loopStarted || bufferPosition == recordingState.bounceRangeStart || bufferPosition >= recordingState.bounceRangeEnd ))
             {
                 // write current snippet onto disk and finish recording
                 // (this can be done synchronously as rendering will now halt)
 
-                DiskWriter::writeBufferToFile( DiskWriter::currentBufferIndex, false );
                 DiskWriter::finish();
 
                 // broadcast update via JNI
@@ -566,26 +713,12 @@ namespace MWEngine {
                 stop();
                 Sequencer::playing = false;
 
-                bouncing           = false;
-                recordOutputToDisk = false;
+                recordingState.bouncing = false;
+                recordingState.outputToFile = false;
 
                 return false;
             }
-
-            // exceeded maximum recording buffer amount ? > write current recording to temporary storage
-
-            if ( DiskWriter::bufferFull())
-            {
-                // when bouncing do this synchronously (engine is not writing to hardware), otherwise
-                // broadcast that a snippet has recorded in full and can be written onto storage
-
-                if ( bouncing )
-                    DiskWriter::writeBufferToFile( DiskWriter::currentBufferIndex, false );
-                else
-                    Notifier::broadcast( Notifications::RECORDED_SNIPPET_READY, DiskWriter::currentBufferIndex );
-
-                DiskWriter::prepareSnippet();
-            }
+            DiskWriter::updateSnippetProgress( false, true );
         }
 #endif
         // tempo update queued ?
@@ -605,13 +738,25 @@ namespace MWEngine {
 #endif
 
         // bit fugly, during bounce on AAudio driver, keep render loop going until bounce completes
-        if ( bouncing && AudioEngineProps::isRendering.load() && DriverAdapter::isAAudio() ) {
+        if ( recordingState.bouncing && AudioEngineProps::isRendering.load() && DriverAdapter::isAAudio() ) {
             render( amountOfSamples );
         }
         return AudioEngineProps::isRendering.load();
     }
 
     /* internal methods */
+
+    void AudioEngine::createOutputBuffer()
+    {
+#ifndef MOCK_ENGINE
+        if ( thread != nullptr ) {
+#endif
+            delete outBuffer;
+            outBuffer = new float[ AudioEngineProps::BUFFER_SIZE * outputChannels ]();
+#ifndef MOCK_ENGINE
+        }
+#endif
+    }
 
     void AudioEngine::handleTempoUpdate( float aQueuedTempo, bool broadcastUpdate )
     {
@@ -642,7 +787,7 @@ namespace MWEngine {
 
         // inform all instruments of the update
 
-        for ( auto & instrument : Sequencer::instruments ) {
+        for ( auto const & instrument : Sequencer::instruments ) {
             instrument->updateEvents( ratio );
         }
 
@@ -658,7 +803,7 @@ namespace MWEngine {
 
             jmethodID native_method_id = JavaBridge::getJavaMethod( JavaAPIs::TEMPO_UPDATED );
 
-            if ( native_method_id != 0 )
+            if ( native_method_id != nullptr )
             {
                 JNIEnv* env = JavaBridge::getEnvironment();
 

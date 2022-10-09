@@ -1,6 +1,6 @@
 # The MIT License (MIT)
 #
-# Copyright (c) 2013-2021 Igor Zinken - https://www.igorski.nl
+# Copyright (c) 2013-2022 Igor Zinken - https://www.igorski.nl
 #
 # Permission is hereby granted, free of charge, to any person obtaining a copy of
 # this software and associated documentation files (the "Software"), to deal in
@@ -20,6 +20,10 @@
 # CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #
 cmake_minimum_required(VERSION 3.4.1)
+
+# policies for SWIG
+cmake_policy(SET CMP0086 NEW)
+cmake_policy(SET CMP0078 NEW)
 
 # For more information about using CMake with Android Studio, read the
 # documentation: https://d.android.com/studio/projects/add-native-code.html
@@ -50,6 +54,7 @@ set(MWENGINE_CORE_SOURCES ${CPP_SRC}/global.cpp
                           ${CPP_SRC}/channelgroup.cpp
                           ${CPP_SRC}/processingchain.cpp
                           ${CPP_SRC}/resizable_audiobuffer.cpp
+                          ${CPP_SRC}/resizable_buffergroup.cpp
                           ${CPP_SRC}/ringbuffer.cpp
                           ${CPP_SRC}/sequencer.cpp
                           ${CPP_SRC}/sequencercontroller.cpp
@@ -72,6 +77,7 @@ set(MWENGINE_CORE_SOURCES ${CPP_SRC}/global.cpp
                           ${CPP_SRC}/modules/routeableoscillator.cpp
                           ${CPP_SRC}/processors/baseprocessor.cpp
                           ${CPP_SRC}/services/library_loader.cpp
+                          ${CPP_SRC}/utilities/audiorenderer.cpp
                           ${CPP_SRC}/utilities/bufferutility.cpp
                           ${CPP_SRC}/utilities/levelutility.cpp
                           ${CPP_SRC}/utilities/bulkcacher.cpp
@@ -114,6 +120,7 @@ set(MWENGINE_PROCESSORS ${CPP_SRC}/processors/abiquadhpfilter.cpp
                         ${CPP_SRC}/processors/flanger.cpp
                         ${CPP_SRC}/processors/fm.cpp
                         ${CPP_SRC}/processors/formantfilter.cpp
+                        ${CPP_SRC}/processors/gain.cpp
                         ${CPP_SRC}/processors/glitcher.cpp
                         ${CPP_SRC}/processors/limiter.cpp
                         ${CPP_SRC}/processors/lowpassfilter.cpp
