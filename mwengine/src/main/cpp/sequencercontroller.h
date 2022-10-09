@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2019 Igor Zinken - http://www.igorski.nl
+ * Copyright (c) 2013-2022 Igor Zinken - http://www.igorski.nl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -46,8 +46,17 @@ class SequencerController
         void setVolume  ( float aVolume );
         void setPlaying ( bool aPlaying );
 
-        void setLoopRange         ( int aStartPosition, int aEndPosition );
-        void setLoopRange         ( int aStartPosition, int aEndPosition, int aStepsPerBar );
+        /**
+         * make the sequencer loop between two given points
+         *
+         * @param aStartPosition {int} buffer offset of the loops startpoint (starts at 0 !)
+         * @param aEndPosition   {int} buffer offset of the loops endpoint
+         * @param aStepsPerBar   {int} the amount of individual segments the sequencer subdivides a single bar into
+         *                             this is used for periodic notifications when the sequencer switches step
+         */
+        void setLoopRange( int aStartPosition, int aEndPosition );
+        void setLoopRange( int aStartPosition, int aEndPosition, int aStepsPerBar );
+
         int getStepPosition       ();
         int  getBufferPosition    ();
         void setBufferPosition    ( int aPosition );
@@ -63,12 +72,6 @@ class SequencerController
 
         BulkCacher* getBulkCacher();
         void cacheAudioEventsForMeasure( int aMeasure );
-
-        void setBounceState             ( bool aIsBouncing, int aMaxBuffers, char* aOutputFile, int rangeStart, int rangeEnd );
-        void setRecordingState          ( bool aRecording,  int aMaxBuffers, char* aOutputFile );
-        void setRecordingFromDeviceState( bool aRecording,  int aMaxBuffers, char* aOutputFile );
-
-        void saveRecordedSnippet( int snippetBufferIndex );
 };
 } // E.O namespace MWEngine
 

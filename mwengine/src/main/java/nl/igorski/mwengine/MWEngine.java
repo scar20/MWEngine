@@ -1,7 +1,7 @@
 /**
  * The MIT License (MIT)
  *
- * Copyright (c) 2013-2021 Igor Zinken - https://www.igorski.nl
+ * Copyright (c) 2013-2022 Igor Zinken - https://www.igorski.nl
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy of
  * this software and associated documentation files (the "Software"), to deal in
@@ -125,9 +125,12 @@ public final class MWEngine
 
         if ( Build.VERSION.SDK_INT >= Build.VERSION_CODES.N ) {
             // retrieve exclusive cores to run rendering thread on
-            cpuCores = Process.getExclusiveCores();
-            JavaUtilities.setCpuCores( cpuCores, cpuCores.length );
-
+            try {
+                cpuCores = Process.getExclusiveCores();
+                JavaUtilities.setCpuCores( cpuCores, cpuCores.length );
+            } catch ( RuntimeException e ) {
+                Log.d( "MWENGINE", "getExclusiveCores() unsupported" );
+            }
             // request sustained performance mode when supported
             if ((( PowerManager ) activity.getSystemService( Context.POWER_SERVICE )).isSustainedPerformanceModeSupported()) {
                 activity.getWindow().setSustainedPerformanceMode( true );
@@ -229,45 +232,95 @@ public final class MWEngine
         return AudioEngine.getInputChannel();
     }
 
-    public void setBouncing( boolean value, String outputFile ) {
-        setBouncing( value, outputFile, 0, AudioEngine.getAmount_of_bars() * AudioEngine.getSamples_per_bar());
-    }
-
-    public void setBouncing( boolean value, String outputFile, int rangeStart, int rangeEnd ) {
-        _sequencerController.setBounceState( value, calculateRecordingSnippetBufferSize(), outputFile, rangeStart, rangeEnd );
-    }
-
     /**
-     * Records the audio coming in from the Android device input.
+     * Records the audio coming in from the Android device input, playing it back over
+     * the dedicated input channel (unless the channel is muted) (@see getInputChannel());
      * Requires RECORD_DEVICE_INPUT to be enabled in global.h as well as the
      * appropriate permissions defined in the AndroidManifest and granted by the user at runtime.
-     *
-     * In order to record the input directly to device storage, @see setRecordFromDeviceInputState()
+     * NOTE: to record the input to device storage, @see startInputRecording|stopInputRecording
      */
     public void recordInput( boolean recordingActive ) {
-        AudioEngine.setRecordDeviceInput( recordingActive );
+        AudioEngine.recordDeviceInput( recordingActive );
+    }
+
+    /*
+    public void startSyncedInOutRecording( String outputFile ) {
+        AudioEngine.recordOutputWithInputSync( true, calculateRecordingSnippetBufferSize(), outputFile );
+    }
+
+    public void stopSyncedInOutRecording() {
+        AudioEngine.recordOutputWithInputSync( false, 0, "" );
+    }
+    */
+
+    /**
+     * @deprecated use startOutputRecording|stopOutputRecording instead
+     */
+    public void setRecordingState( boolean recordingActive, String outputFile ) {
+        if ( recordingActive )
+            startOutputRecording( outputFile );
+        else
+            stopOutputRecording();
     }
 
     /**
      * Records the audio output of the engine and writes it onto the Android
-     * device's storage as a WAV file. Note this keeps recording until setRecordingState() is
-     * invoked again with value false. Additionally, the sequencer must be running!
+     * device's storage as a WAV file. Note this keeps recording until stopRecording() is invoked.
+     * Additionally, the sequencer must be running!
      *
      * Requires RECORD_TO_DISK to be enabled in global.h as well as the
      * appropriate permissions defined in the AndroidManifest and granted by the user at runtime.
      *
-     * @param recordingActive {boolean} toggle the recording state on/off
      * @param outputFile {string} name of the WAV file to create and write the recording into
      */
-    public void setRecordingState( boolean recordingActive, String outputFile ) {
-        int maxRecordBuffers = 0;
+    public void startOutputRecording( String outputFile ) {
+        AudioEngine.setRecordOutputToFileState( calculateRecordingSnippetBufferSize(), outputFile );
+    }
 
-        // create / reset the recorded buffer when
-        // hitting the record button
+    public void stopOutputRecording() {
+        AudioEngine.unsetRecordOutputToFileState();
+    }
+
+    /**
+     * @deprecated use startBouncing|stopBouncing instead
+     */
+    public void setBouncing( boolean value, String outputFile ) {
+        if ( value )
+            startBouncing( outputFile );
+        else
+            stopBouncing();
+    }
+
+    /**
+     * @deprecated use startBouncing|stopBouncing instead
+     */
+    public void setBouncing( boolean value, String outputFile, int rangeStart, int rangeEnd ) {
+        if ( value )
+            startBouncing( outputFile, rangeStart, rangeEnd );
+        else
+            stopBouncing();
+    }
+
+    public void startBouncing( String outputFile ) {
+        startBouncing( outputFile, 0, AudioEngine.getAmount_of_bars() * AudioEngine.getSamples_per_bar());
+    }
+
+    public void startBouncing( String outputFile, int rangeStart, int rangeEnd ) {
+        AudioEngine.setBounceOutputToFileState( calculateRecordingSnippetBufferSize(), outputFile, rangeStart, rangeEnd );
+    }
+
+    public void stopBouncing() {
+        AudioEngine.unsetBounceOutputToFileState();
+    }
+
+    /**
+     * @deprecated use startInputRecording|stopInputRecording instead
+     */
+    public void setRecordFromDeviceInputState( boolean recordingActive, String outputFile, int maxDurationInMilliSeconds ) {
         if ( recordingActive )
-            maxRecordBuffers = calculateRecordingSnippetBufferSize();
-
-        _sequencerController.setRecordingState( recordingActive, maxRecordBuffers, outputFile );
+            startInputRecording( outputFile, false );
+        else
+            stopInputRecording();
     }
 
     /**
@@ -279,20 +332,31 @@ public final class MWEngine
      * Requires RECORD_DEVICE_INPUT to be enabled in global.h as well as the
      * appropriate permissions defined in the AndroidManifest and granted by the user at runtime.
      *
-     * @param recordingActive {boolean} toggle the recording state on/off
      * @param outputFile {string} name of the WAV file to create and write the recording into
-     * @param maxDurationInMilliSeconds {int} the size (in milliseconds) of each individual written buffer
+     * @param skipProcessing {boolean} when true, the ProcessingChain of the input channel is omitted.
      */
-    public void setRecordFromDeviceInputState( boolean recordingActive, String outputFile, int maxDurationInMilliSeconds ) {
-        int maxRecordBuffers = 0;
+    public void startInputRecording( String outputFile, boolean skipProcessing ) {
+        AudioEngine.setRecordInputToFileState( calculateRecordingSnippetBufferSize(), outputFile, skipProcessing );
+    }
 
-        // create / reset the recorded buffer when
-        // hitting the record button
+    public void stopInputRecording() {
+        AudioEngine.unsetRecordInputToFileState();
+    }
 
-        if ( recordingActive )
-            maxRecordBuffers = BufferUtility.millisecondsToBuffer( maxDurationInMilliSeconds, SAMPLE_RATE );
+    /**
+     * Records both the internally synthesized audio and audio recorded from the device input.
+     * The device input channel is muted (to prevent feedback when not using headphones and also not
+     * to sound delayed when user is "singing to a backing track").
+     * Given roundtripLatencyInMs will be used to correct the latency between hearing
+     * the device output, recording sound into the input, and hearing the sound overlaid onto
+     * the output again. Requires same permissions as startInputRecording()
+     */
+    public void startFullDuplexRecording( float roundtripLatencyInMs, String outputFile ) {
+        AudioEngine.setRecordFullDuplexState( roundtripLatencyInMs, calculateRecordingSnippetBufferSize(), outputFile );
+    }
 
-        _sequencerController.setRecordingFromDeviceState( recordingActive, maxRecordBuffers, outputFile );
+    public void stopFullDuplexRecording() {
+        AudioEngine.unsetRecordFullDuplexState();
     }
 
     /**
@@ -301,7 +365,7 @@ public final class MWEngine
      * invoke from a different thread than the audio rendering thread to prevent buffer under runs.
      */
     public void saveRecordedSnippet( int snippetBufferIndex ) {
-        _sequencerController.saveRecordedSnippet( snippetBufferIndex );
+        AudioEngine.saveRecordedSnippet( snippetBufferIndex );
     }
 
     public void reset() {

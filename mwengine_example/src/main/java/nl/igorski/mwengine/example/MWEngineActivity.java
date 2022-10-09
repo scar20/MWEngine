@@ -398,9 +398,10 @@ public final class MWEngineActivity extends AppCompatActivity {
         @Override
         public void onClick( View v ) {
             _isRecording = !_isRecording;
-            _engine.setRecordingState(
-                _isRecording, Environment.getExternalStorageDirectory().getAbsolutePath() + "/Download/mwengine_output.wav"
-            );
+            if ( _isRecording )
+                _engine.startOutputRecording( Environment.getExternalStorageDirectory().getAbsolutePath() + "/Download/mwengine_output.wav" );
+            else
+                _engine.stopOutputRecording();
             (( Button ) v ).setText( _isRecording ? R.string.rec_btn_off : R.string.rec_btn_on );
         }
     }
@@ -531,13 +532,14 @@ public final class MWEngineActivity extends AppCompatActivity {
                     int sequencerPosition = _sequencerController.getStepPosition();
                     int elapsedSamples    = _sequencerController.getBufferPosition();
 
-                    Log.d( LOG_TAG, "seq. position: " + sequencerPosition + ", buffer offset: " + aNotificationValue +
-                            ", elapsed samples: " + elapsedSamples );
+                    // example snippet to show how to track sequencer position. Using logcat output in a
+                    // frequently firing engine callback is not recommended for performance reasons
+                    // Log.d( LOG_TAG, "seq. position: " + sequencerPosition + ", buffer offset: " + aNotificationValue + ", elapsed samples: " + elapsedSamples );
                     break;
                 case RECORDED_SNIPPET_READY:
                     runOnUiThread( new Runnable() {
                         public void run() {
-                            // we run the saving on a different thread to prevent buffer under runs while rendering audio
+                            // we run the saving (I/O operations) on a different thread to prevent buffer under runs while rendering audio
                             _engine.saveRecordedSnippet( aNotificationValue ); // notification value == snippet buffer index
                         }
                     });
@@ -564,8 +566,6 @@ public final class MWEngineActivity extends AppCompatActivity {
 
         final int duration = 1;
         final SynthEvent event = new SynthEvent(( float ) frequency, position, duration, synth );
-
-        event.calculateBuffers();
 
         if ( synth == _synth1 )
             _synth1Events.add( event );
