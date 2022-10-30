@@ -26,6 +26,7 @@
 #include <math.h>
 #include <vector>
 #include <algorithm>
+#include <audiobuffer.h>
 #include "global.h"
 
 namespace MWEngine {
@@ -60,6 +61,19 @@ inline SAMPLE_TYPE capSampleSafe( SAMPLE_TYPE value )
     return value;
 }
 
+// same as above, but applied to all content within an AudioBuffer
+
+inline void capBufferSamplesSafe( AudioBuffer* outputBuffer )
+{
+    int bufferSize = outputBuffer->bufferSize;
+    for ( int c = 0; c < outputBuffer->amountOfChannels; ++c ) {
+        SAMPLE_TYPE* channelBuffer = outputBuffer->getBufferForChannel( c );
+        for ( size_t i = 0; i < bufferSize; ++i ) {
+            channelBuffer[ i ] = capSampleSafe( channelBuffer[ i ] );
+        }
+    }
+}
+
 // inverts a pow operation, allowing you to derive the exponent from the known value and base
 
 inline float inversePow( float value, float base )
@@ -82,6 +96,21 @@ int roundTo( int value, int multipleOf );
 float randomFloat();
 char* sliceString( const std::vector<char>& inputBuffer, char* outputBuffer, int startOffset, int length );
 unsigned long sliceLong( const std::vector<char>& inputBuffer, int startOffset, bool littleEndian );
+
+/* gain methods */
+
+const float LOG_2_DB = 8.6858896380650365530225783783321; // 20 / ln( 10 )
+const float DB_2_LOG = 0.11512925464970228420089957273422; // ln( 10 ) / 20
+
+inline float lin2dB( float lin )
+{
+    return log( lin ) * LOG_2_DB;
+}
+
+inline float dB2lin( float dB )
+{
+    return exp( dB * DB_2_LOG );
+}
 
 } // E.O namespace MWEngine
 
